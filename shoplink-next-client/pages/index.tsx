@@ -355,7 +355,7 @@ const IndexPage: NextPage = () => {
             <br />
             1. Copy and paste your store domain below.
             <br />
-            2. Click the "Connect Your Store" button below.
+            2. Click the &quot;Connect Your Store&quot; button below.
             <br />
             3. Follow the instructions to connect our app to your Shopify store.
           </h3>
