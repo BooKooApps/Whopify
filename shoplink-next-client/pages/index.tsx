@@ -382,7 +382,7 @@ const IndexPage: NextPage = () => {
             <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
               <button 
                 onClick={handleConnect} 
-                disabled={isConnecting || loading}
+                disabled={isConnecting || loading || !shopDomain}
                 style={{ 
                   padding: "16px 32px", 
                   borderRadius: 8, 
