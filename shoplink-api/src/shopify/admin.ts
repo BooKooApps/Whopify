@@ -66,8 +66,15 @@ export async function registerAppUninstalledWebhook({ shop, adminAccessToken }: 
     variables,
   });
   const payload = res.data?.webhookSubscriptionCreate;
-  if (!payload || payload.userErrors?.length) {
-    throw new Error(`webhookSubscriptionCreate error: ${payload?.userErrors?.map(e => e.message).join(", ")}`);
+  if (!payload) {
+    throw new Error("webhookSubscriptionCreate error: no payload");
+  }
+  if (payload.userErrors?.length) {
+    const duplicate = payload.userErrors.some((e) => (e.message || "").toLowerCase().includes("address for this topic has already been taken"));
+    if (duplicate) {
+      return payload.webhookSubscription?.id ?? null;
+    }
+    throw new Error(`webhookSubscriptionCreate error: ${payload.userErrors.map(e => e.message).join(", ")}`);
   }
   return payload.webhookSubscription?.id ?? null;
 }

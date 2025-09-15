@@ -10,6 +10,16 @@ config();
 const app = new Hono<{ Variables: { requestId: string } }>();
 const baseLogger = createLogger();
 
+app.use("*", async (c, next) => {
+  c.header("Access-Control-Allow-Origin", "*");
+  c.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  c.header("Access-Control-Allow-Headers", "Content-Type,Authorization,ngrok-skip-browser-warning");
+  if (c.req.method === "OPTIONS") {
+    return c.text("", 204);
+  }
+  await next();
+});
+
 // requestId + access log middleware
 app.use("*", async (c, next) => {
   const requestId = crypto.randomUUID();

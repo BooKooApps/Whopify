@@ -10,7 +10,7 @@ export const shopifyRouter = new Hono<{ Variables: { requestId: string } }>();
 
 shopifyRouter.get("/install", async (c) => {
   const query = z
-    .object({ shop: z.string().min(1), experienceId: z.string().min(1) })
+    .object({ shop: z.string().min(1), experienceId: z.string().min(1), returnUrl: z.string().optional() })
     .safeParse(Object.fromEntries(new URL(c.req.url).searchParams));
 
   if (!query.success) {
@@ -18,7 +18,7 @@ shopifyRouter.get("/install", async (c) => {
   }
 
   const { SHOPIFY_API_KEY, APP_URL } = getEnv();
-  const state = createState({ experienceId: query.data.experienceId });
+  const state = createState({ experienceId: query.data.experienceId, returnUrl: query.data.returnUrl });
   await saveState(state);
 
   const installUrl = buildInstallUrl({ shop: query.data.shop, state, clientId: SHOPIFY_API_KEY, appUrl: APP_URL });
@@ -45,7 +45,7 @@ shopifyRouter.get("/callback", async (c) => {
   }
 
   const { shop, code } = parsed.data;
-  const decodedState = JSON.parse(Buffer.from(parsed.data.state, "base64url").toString("utf8")) as { experienceId?: string };
+  const decodedState = JSON.parse(Buffer.from(parsed.data.state, "base64url").toString("utf8")) as { experienceId?: string; returnUrl?: string };
   const token = await exchangeCodeForToken({ shop, code });
 
   await storage.saveShop({ shopDomain: shop, adminAccessToken: token.access_token });
@@ -61,6 +61,11 @@ shopifyRouter.get("/callback", async (c) => {
 
   const logger = createLogger({ mod: "shopify", requestId: c.get("requestId") });
   logger.info("oauth_install_success", { shop, experienceId: decodedState.experienceId });
+  
+  // If returnUrl is provided, redirect back to the frontend
+  if (decodedState.returnUrl) return c.redirect(decodedState.returnUrl, 302);
+  
+  
   return c.json({ ok: true, shop });
 });
 
