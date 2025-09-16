@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { getEnv } from "../utils/env.js";
-import { createState, saveState, verifyHmac, buildInstallUrl, exchangeCodeForToken, verifyWebhookHmac } from "./utils.js";
+import { createState, saveState, verifyHmac, buildInstallUrl, exchangeCodeForToken, verifyWebhookHmac, verifyInstallAuthToken } from "./utils.js";
 import { storage } from "../utils/storage.js";
 import { createStorefrontAccessToken, registerAppUninstalledWebhook, fetchProductsAdmin } from "./admin.js";
 import { createLogger } from "../utils/logger.js";
@@ -9,12 +9,20 @@ import { createLogger } from "../utils/logger.js";
 export const shopifyRouter = new Hono<{ Variables: { requestId: string } }>();
 
 shopifyRouter.get("/install", async (c) => {
+  const url = new URL(c.req.url);
   const query = z
-    .object({ shop: z.string().min(1), experienceId: z.string().min(1), returnUrl: z.string().optional() })
-    .safeParse(Object.fromEntries(new URL(c.req.url).searchParams));
+    .object({ shop: z.string().min(1), experienceId: z.string().min(1), auth: z.string().min(1), returnUrl: z.string().optional() })
+    .safeParse(Object.fromEntries(url.searchParams));
 
   if (!query.success) {
-    return c.json({ error: "Missing shop parameter" }, 400);
+    return c.json({ error: "Missing required parameters" }, 400);
+  }
+
+  const valid = verifyInstallAuthToken(query.data.auth, query.data.experienceId);
+  if (!valid) {
+    const logger = createLogger({ mod: "shopify", requestId: c.get("requestId") });
+    logger.warn("install_unauthorized", { shop: query.data.shop, experienceId: query.data.experienceId });
+    return c.json({ error: "Unauthorized" }, 401);
   }
 
   const { SHOPIFY_API_KEY, APP_URL } = getEnv();
@@ -23,7 +31,7 @@ shopifyRouter.get("/install", async (c) => {
 
   const installUrl = buildInstallUrl({ shop: query.data.shop, state, clientId: SHOPIFY_API_KEY, appUrl: APP_URL });
   const logger = createLogger({ mod: "shopify", requestId: c.get("requestId") });
-  logger.info("oauth_install_start", { shop: query.data.shop, experienceId: query.data.experienceId });
+  logger.info("oauth_install_start", { shop: query.data.shop, experienceId: query.data.experienceId, sub: valid.sub });
   return c.redirect(installUrl, 302);
 });
 
@@ -90,8 +98,14 @@ shopifyRouter.get("/products", async (c) => {
   const rec = await storage.getShopByExperience(query.data.experienceId);
   if (!rec?.adminAccessToken) return c.json({ error: "Not connected" }, 404);
   const first = query.data.first ? parseInt(query.data.first, 10) : 20;
-  const items = await fetchProductsAdmin({ shop: rec.shopDomain, adminAccessToken: rec.adminAccessToken, first });
-  return c.json({ products: items });
+  try {
+    const items = await fetchProductsAdmin({ shop: rec.shopDomain, adminAccessToken: rec.adminAccessToken, first });
+    return c.json({ shopDomain: rec.shopDomain, products: items });
+  } catch (e: any) {
+    const logger = createLogger({ mod: "shopify", requestId: c.get("requestId") });
+    logger.error("products_fetch_error", { error: e?.message || String(e) });
+    return c.json({ error: e?.message || "Failed to fetch products" }, 502);
+  }
 });
 
 shopifyRouter.post("/webhooks/app_uninstalled", async (c) => {

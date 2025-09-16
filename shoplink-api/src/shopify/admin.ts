@@ -14,7 +14,14 @@ async function adminGraphQL<T>({ shop, adminAccessToken, query, variables }: { s
     },
     body: JSON.stringify({ query, variables }),
   });
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "");
+    throw new Error(`Shopify Admin GraphQL HTTP ${resp.status}: ${text || resp.statusText}`);
+  }
   const json = (await resp.json()) as GraphQLResponse<T>;
+  if (json.errors && json.errors.length) {
+    throw new Error(`Shopify Admin GraphQL errors: ${json.errors.map(e => e.message).join("; ")}`);
+  }
   return json;
 }
 
@@ -86,19 +93,21 @@ export async function fetchProductsAdmin({ shop, adminAccessToken, first = 20 }:
         nodes {
           id
           title
+          handle
           featuredImage { url }
-          variants(first: 1) { nodes { price } }
+          variants(first: 1) { nodes { id price } }
         }
       }
     }
   `;
   const res = await adminGraphQL<{
-    products: { nodes: Array<{ id: string; title: string; featuredImage?: { url: string } | null; variants: { nodes: Array<{ price: { amount: string; currencyCode: string } }> } }> };
+    products: { nodes: Array<{ id: string; title: string; handle: string; featuredImage?: { url: string } | null; variants: { nodes: Array<{ id: string; price: string }> } }> };
   }>({ shop, adminAccessToken, query, variables: { first } });
   const nodes = res.data?.products.nodes ?? [];
   return nodes.map((n) => ({
     id: n.id,
     title: n.title,
+    handle: n.handle,
     imageUrl: n.featuredImage?.url ?? null,
     price: n.variants.nodes[0]?.price ?? null,
   }));
