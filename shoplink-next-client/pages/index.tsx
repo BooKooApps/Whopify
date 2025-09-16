@@ -230,19 +230,32 @@ const IndexPage: NextPage = () => {
     }
   }
 
-  function handleConnect() {
+  async function handleConnect() {
     if (!experienceId) return;
     const b = normalizeBaseUrl(apiBase);
     if (!b) { setError("API base URL is not configured"); return; }
     const normalized = normalizeShopDomain(shopDomain);
     if (!/\.myshopify\.com$/i.test(normalized)) { setError("Enter a myshopify.com domain"); return; }
-    
+
     setIsConnecting(true);
     setError(null);
-    
-    const returnUrl = `${window.location.origin}?connected=1&shop=${encodeURIComponent(normalized)}`;
-    const url = `${b}/shopify/install?shop=${encodeURIComponent(normalized)}&experienceId=${encodeURIComponent(String(experienceId))}&returnUrl=${encodeURIComponent(returnUrl)}&ngrok-skip-browser-warning=true`;
-    window.open(url, '_blank', 'noopener,noreferrer');
+
+    try {
+      const returnUrl = `${window.location.origin}?connected=1&shop=${encodeURIComponent(normalized)}`;
+      const qs = new URLSearchParams({ shop: normalized, experienceId: String(experienceId), returnUrl });
+      const resp = await fetch(`/api/shopify/install/start?${qs.toString()}`, { headers: { Accept: "application/json" } });
+      if (!resp.ok) {
+        const m = await resp.json().catch(() => null);
+        throw new Error(m?.error || `Failed to start install (${resp.status})`);
+      }
+      const json = await resp.json();
+      const installUrl = json.installUrl as string;
+      if (!installUrl) throw new Error("Missing installUrl");
+      window.location.href = installUrl;
+    } catch (e: any) {
+      setError(e.message || "Failed to start install");
+      setIsConnecting(false);
+    }
   }
 
   const handleLoadProducts = async () => {

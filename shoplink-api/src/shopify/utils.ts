@@ -54,4 +54,29 @@ export function verifyWebhookHmac(hmacHeader: string | null | undefined, rawBody
   return crypto.timingSafeEqual(a, b);
 }
 
+function base64url(input: Buffer) {
+  return input.toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+export function verifyInstallAuthToken(token: string, expectedExperienceId: string): { sub: string; experienceId: string; exp: number } | null {
+  try {
+    const { INSTALL_SIGNING_SECRET } = getEnv();
+    const parts = token.split(".");
+    if (parts.length !== 2) return null;
+    const [payloadB64, sigB64] = parts;
+    const payloadJson = Buffer.from(payloadB64.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
+    const payload = JSON.parse(payloadJson) as { sub: string; experienceId: string; exp: number };
+    const h = crypto.createHmac("sha256", INSTALL_SIGNING_SECRET).update(payloadB64).digest();
+    const expectedSig = base64url(h);
+    const a = Buffer.from(sigB64, "utf8");
+    const b = Buffer.from(expectedSig, "utf8");
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    if (payload.experienceId !== expectedExperienceId) return null;
+    if (typeof payload.exp !== "number" || Date.now() >= payload.exp * 1000) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
 
