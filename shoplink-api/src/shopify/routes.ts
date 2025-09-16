@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getEnv } from "../utils/env.js";
 import { createState, saveState, verifyHmac, buildInstallUrl, exchangeCodeForToken, verifyWebhookHmac, verifyInstallAuthToken } from "./utils.js";
 import { storage } from "../utils/storage.js";
-import { createStorefrontAccessToken, registerAppUninstalledWebhook, fetchProductsAdmin } from "./admin.js";
+import { createStorefrontAccessToken, registerAppUninstalledWebhook, fetchProductsAdmin, cartCreateStorefront } from "./admin.js";
 import { createLogger } from "../utils/logger.js";
 
 export const shopifyRouter = new Hono<{ Variables: { requestId: string } }>();
@@ -58,8 +58,13 @@ shopifyRouter.get("/callback", async (c) => {
 
   await storage.saveShop({ shopDomain: shop, adminAccessToken: token.access_token });
 
-  // Storefront token creation not required for Admin-based product listing
-  await storage.saveShop({ shopDomain: shop, adminAccessToken: token.access_token });
+  try {
+    const sfToken = await createStorefrontAccessToken({ shop, adminAccessToken: token.access_token });
+    await storage.saveShop({ shopDomain: shop, adminAccessToken: token.access_token, storefrontAccessToken: sfToken });
+  } catch (e: any) {
+    const logger = createLogger({ mod: "shopify", requestId: c.get("requestId") });
+    logger.warn("storefront_token_create_failed", { error: e?.message || String(e) });
+  }
 
   await registerAppUninstalledWebhook({ shop, adminAccessToken: token.access_token });
 
@@ -70,9 +75,7 @@ shopifyRouter.get("/callback", async (c) => {
   const logger = createLogger({ mod: "shopify", requestId: c.get("requestId") });
   logger.info("oauth_install_success", { shop, experienceId: decodedState.experienceId });
   
-  // If returnUrl is provided, redirect back to the frontend
   if (decodedState.returnUrl) return c.redirect(decodedState.returnUrl, 302);
-  
   
   return c.json({ ok: true, shop });
 });
@@ -105,6 +108,35 @@ shopifyRouter.get("/products", async (c) => {
     const logger = createLogger({ mod: "shopify", requestId: c.get("requestId") });
     logger.error("products_fetch_error", { error: e?.message || String(e) });
     return c.json({ error: e?.message || "Failed to fetch products" }, 502);
+  }
+});
+
+shopifyRouter.post("/cart/create", async (c) => {
+  const body = await c.req.json().catch(() => null) as any;
+  const schema = z.object({ experienceId: z.string().min(1), lines: z.array(z.object({ variantId: z.string().min(1), quantity: z.number().int().positive().optional() })).min(1) });
+  const parsed = schema.safeParse(body ?? {});
+  if (!parsed.success) return c.json({ error: "Invalid body" }, 400);
+  const rec = await storage.getShopByExperience(parsed.data.experienceId);
+  if (!rec?.shopDomain) return c.json({ error: "Not connected" }, 404);
+  if (!rec.storefrontAccessToken) {
+    if (!rec.adminAccessToken) return c.json({ error: "Not connected" }, 404);
+    try {
+      const sf = await createStorefrontAccessToken({ shop: rec.shopDomain, adminAccessToken: rec.adminAccessToken });
+      await storage.saveShop({ shopDomain: rec.shopDomain, adminAccessToken: rec.adminAccessToken, storefrontAccessToken: sf });
+      rec.storefrontAccessToken = sf;
+    } catch (e: any) {
+      const logger = createLogger({ mod: "shopify", requestId: c.get("requestId") });
+      logger.error("storefront_token_backfill_failed", { error: e?.message || String(e) });
+      return c.json({ error: e?.message || "Failed to create storefront token" }, 502);
+    }
+  }
+  try {
+    const result = await cartCreateStorefront({ shop: rec.shopDomain, storefrontAccessToken: rec.storefrontAccessToken, lines: parsed.data.lines });
+    return c.json({ checkoutUrl: result.checkoutUrl, cartId: result.cartId });
+  } catch (e: any) {
+    const logger = createLogger({ mod: "shopify", requestId: c.get("requestId") });
+    logger.error("cart_create_error", { error: e?.message || String(e) });
+    return c.json({ error: e?.message || "Failed to create cart" }, 502);
   }
 });
 

@@ -110,7 +110,59 @@ export async function fetchProductsAdmin({ shop, adminAccessToken, first = 20 }:
     handle: n.handle,
     imageUrl: n.featuredImage?.url ?? null,
     price: n.variants.nodes[0]?.price ?? null,
+    variantId: n.variants.nodes[0]?.id ?? null,
   }));
+}
+
+async function storefrontGraphQL<T>({ shop, storefrontAccessToken, query, variables }: { shop: string; storefrontAccessToken: string; query: string; variables?: Record<string, unknown>; }): Promise<GraphQLResponse<T>> {
+  const resp = await fetch(`https://${shop}/api/2024-07/graphql.json`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "");
+    throw new Error(`Shopify Storefront GraphQL HTTP ${resp.status}: ${text || resp.statusText}`);
+  }
+  const json = (await resp.json()) as GraphQLResponse<T>;
+  if (json.errors && json.errors.length) {
+    throw new Error(`Shopify Storefront GraphQL errors: ${json.errors.map(e => e.message).join("; ")}`);
+  }
+  return json;
+}
+
+export async function cartCreateStorefront({ shop, storefrontAccessToken, lines }: { shop: string; storefrontAccessToken: string; lines: Array<{ variantId: string; quantity?: number }>; }): Promise<{ checkoutUrl: string; cartId: string }> {
+  const mutation = /* GraphQL */ `
+    mutation CartCreate($input: CartInput) {
+      cartCreate(input: $input) {
+        cart { id checkoutUrl }
+        userErrors { message field }
+      }
+    }
+  `;
+  const variables = {
+    input: {
+      lines: lines.map((l) => ({ merchandiseId: l.variantId, quantity: l.quantity ?? 1 })),
+    },
+  } as const;
+  const res = await storefrontGraphQL<{ cartCreate: { cart: { id: string; checkoutUrl: string } | null; userErrors: Array<{ message: string }>; } }>({
+    shop,
+    storefrontAccessToken,
+    query: mutation,
+    variables,
+  });
+  const payload = res.data?.cartCreate;
+  if (!payload) throw new Error("cartCreate error: no payload");
+  if (payload.userErrors && payload.userErrors.length) {
+    throw new Error(`cartCreate error: ${payload.userErrors.map(e => e.message).join(", ")}`);
+  }
+  if (!payload.cart?.checkoutUrl || !payload.cart?.id) {
+    throw new Error("cartCreate error: missing checkoutUrl or id");
+  }
+  return { checkoutUrl: payload.cart.checkoutUrl, cartId: payload.cart.id };
 }
 
 
