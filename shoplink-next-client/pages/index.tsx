@@ -10,6 +10,7 @@ type Product = {
   title: string;
   imageUrl: string | null;
   price: string | null;
+  variantId?: string | null;
   description?: string;
   vendor?: string;
   productType?: string;
@@ -20,7 +21,7 @@ type Product = {
   totalInventory?: number;
 };
 
-const ProductCard = ({ product }: { product: Product }) => {
+const ProductCard = ({ product, onBuyNow, disabled }: { product: Product; onBuyNow: (p: Product) => void; disabled?: boolean }) => {
   const colors = useColors();
   
   return (
@@ -140,14 +141,16 @@ const ProductCard = ({ product }: { product: Product }) => {
           cursor: "pointer",
           transition: "background-color 0.2s ease"
         }}
+        disabled={disabled}
         onMouseEnter={(e) => {
           e.currentTarget.style.backgroundColor = colors.green10;
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.backgroundColor = colors.green9;
         }}
+        onClick={() => onBuyNow(product)}
       >
-        Buy Now
+        {disabled ? "Preparing checkout..." : "Buy Now"}
       </button>
     </div>
   );
@@ -163,6 +166,7 @@ const IndexPage: NextPage = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [editingShopDomain, setEditingShopDomain] = useState("");
+  const [checkingOutId, setCheckingOutId] = useState<string | null>(null);
   
   const colors = useColors();
 
@@ -282,6 +286,7 @@ const IndexPage: NextPage = () => {
         title: n.title,
         imageUrl: n.imageUrl ?? null,
         price: n.price ?? null,
+        variantId: n.variantId ?? null,
         description: n.description ?? null,
         vendor: n.vendor ?? null,
         productType: n.productType ?? null,
@@ -301,6 +306,35 @@ const IndexPage: NextPage = () => {
     } finally {
       setLoading(false);
       setIsConnecting(false);
+    }
+  };
+
+  const handleBuyNow = async (p: Product) => {
+    if (!p?.variantId) { setError("No variant available for this product"); return; }
+    setError(null);
+    setCheckingOutId(p.id);
+    try {
+      const b = normalizeBaseUrl(apiBase);
+      if (!b) throw new Error("API base URL is not configured");
+      if (!experienceId) throw new Error("Missing experienceId");
+      const url = `${b}/shopify/cart/create`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json", "ngrok-skip-browser-warning": "true" },
+        body: JSON.stringify({ experienceId, lines: [{ variantId: p.variantId, quantity: 1 }] })
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        throw new Error(j?.error || `HTTP ${res.status}`);
+      }
+      const json = await res.json();
+      const checkoutUrl = json?.checkoutUrl as string | undefined;
+      if (!checkoutUrl) throw new Error("Missing checkoutUrl");
+      window.location.href = checkoutUrl;
+    } catch (e: any) {
+      setError(e?.message || "Failed to start checkout");
+    } finally {
+      setCheckingOutId(null);
     }
   };
 
@@ -464,7 +498,7 @@ const IndexPage: NextPage = () => {
             marginTop: 24 
           }}>
             {products.map((item) => (
-              <ProductCard key={item.id} product={item} />
+              <ProductCard key={item.id} product={item} onBuyNow={handleBuyNow} disabled={checkingOutId === item.id} />
             ))}
           </div>
         )}
