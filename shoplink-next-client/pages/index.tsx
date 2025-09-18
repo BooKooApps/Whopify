@@ -168,14 +168,19 @@ const IndexPage: NextPage = () => {
   const colors = useColors();
 
   const experienceId = useMemo(() => process.env.NEXT_PUBLIC_WHOP_APP_ID ?? "", []);
-  const apiBase = useMemo(() => process.env.NEXT_PUBLIC_API_BASE_URL ?? "", []);
+  const apiBase = useMemo(() => "", []);
 
   useEffect(() => {
     const savedShop = typeof window !== "undefined" ? window.localStorage.getItem("shop_domain") : null;
+    const savedConnected = typeof window !== "undefined" ? window.localStorage.getItem("is_connected") === "true" : false;
     
     if (savedShop) {
       setShopDomain(savedShop);
       setEditingShopDomain(savedShop);
+    }
+    
+    if (savedConnected) {
+      setIsConnected(true);
     }
     
     // Check for connected=1 in URL params
@@ -184,6 +189,8 @@ const IndexPage: NextPage = () => {
       if (urlParams.get("connected") === "1") {
         setShowConnectedToast(true);
         setIsConnected(true);
+        // Save connected state
+        window.localStorage.setItem("is_connected", "true");
         // Auto-hide toast after 3 seconds
         setTimeout(() => setShowConnectedToast(false), 3000);
         // Auto-load products
@@ -233,8 +240,6 @@ const IndexPage: NextPage = () => {
 
   async function handleConnect() {
     if (!experienceId) return;
-    const b = normalizeBaseUrl(apiBase);
-    if (!b) { setError("API base URL is not configured"); return; }
     const normalized = normalizeShopDomain(shopDomain);
     if (!/\.myshopify\.com$/i.test(normalized)) { setError("Enter a myshopify.com domain"); return; }
 
@@ -263,10 +268,9 @@ const IndexPage: NextPage = () => {
     setError(null);
     setLoading(true);
     try {
-      const b = normalizeBaseUrl(apiBase);
-      if (!b) throw new Error("API base URL is not configured");
+      const b = normalizeBaseUrl(apiBase) || "";
       if (!experienceId) throw new Error("Missing experienceId");
-      const url = `${b}/shopify/products?experienceId=${encodeURIComponent(experienceId)}&ngrok-skip-browser-warning=true`;
+      const url = `${b || "/api"}/shopify/products?experienceId=${encodeURIComponent(experienceId)}&ngrok-skip-browser-warning=true`;
       const res = await fetch(url, { headers: { "Accept": "application/json", "ngrok-skip-browser-warning": "true" } });
       const ct = res.headers.get("content-type") || "";
       if (!ct.toLowerCase().includes("application/json")) {
@@ -311,10 +315,9 @@ const IndexPage: NextPage = () => {
     setError(null);
     setCheckingOutId(p.id);
     try {
-      const b = normalizeBaseUrl(apiBase);
-      if (!b) throw new Error("API base URL is not configured");
+      const b = normalizeBaseUrl(apiBase) || "";
       if (!experienceId) throw new Error("Missing experienceId");
-      const url = `${b}/shopify/cart/create`;
+      const url = `${b || "/api"}/shopify/cart/create`;
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json", "ngrok-skip-browser-warning": "true" },
@@ -338,6 +341,7 @@ const IndexPage: NextPage = () => {
   const handleDeleteStore = () => {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem("shop_domain");
+      window.localStorage.removeItem("is_connected");
     }
     setShopDomain("");
     setEditingShopDomain("");
