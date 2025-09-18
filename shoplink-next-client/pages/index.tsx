@@ -26,21 +26,18 @@ const ProductCard = ({ product, onBuyNow, disabled }: { product: Product; onBuyN
   
   return (
     <div style={{
-      border: `1px solid ${colors.gray6}`,
-      borderRadius: 12,
+      border: `1px solid ${colors.gray5}`,
+      borderRadius: 8,
       padding: 16,
-      backgroundColor: colors.gray1,
-      boxShadow: `0 2px 4px ${colors.grayA4}`,
-      transition: "transform 0.2s ease, box-shadow 0.2s ease",
+      backgroundColor: colors.gray2,
+      transition: "transform 0.2s ease",
       cursor: "pointer"
     }}
     onMouseEnter={(e) => {
-      e.currentTarget.style.transform = "translateY(-2px)";
-      e.currentTarget.style.boxShadow = `0 4px 8px ${colors.grayA6}`;
+      e.currentTarget.style.transform = "translateY(-4px)";
     }}
     onMouseLeave={(e) => {
       e.currentTarget.style.transform = "translateY(0)";
-      e.currentTarget.style.boxShadow = `0 2px 4px ${colors.grayA4}`;
     }}
     >
       <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, color: colors.gray12 }}>
@@ -100,9 +97,9 @@ const ProductCard = ({ product, onBuyNow, disabled }: { product: Product; onBuyN
               style={{
                 fontSize: 12,
                 padding: "2px 8px",
-                backgroundColor: colors.blue3,
-                color: colors.blue11,
-                borderRadius: 12,
+                backgroundColor: colors.violet3,
+                color: colors.violet11,
+                borderRadius: 10,
                 fontWeight: 500
               }}
             >
@@ -118,7 +115,7 @@ const ProductCard = ({ product, onBuyNow, disabled }: { product: Product; onBuyN
         alignItems: "center",
         marginBottom: 12
       }}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: colors.blue11 }}>
+        <div style={{ fontSize: 20, fontWeight: 700, color: colors.gray12 }}>
           {product.price ? `$${product.price}` : "Price N/A"}
         </div>
         {product.totalInventory !== undefined && (
@@ -132,8 +129,8 @@ const ProductCard = ({ product, onBuyNow, disabled }: { product: Product; onBuyN
         style={{
           width: "100%",
           padding: "12px",
-          backgroundColor: colors.green9,
-          color: colors.green12,
+          backgroundColor: colors.violet9,
+          color: colors.gray12,
           border: "none",
           borderRadius: 6,
           fontSize: 16,
@@ -143,10 +140,10 @@ const ProductCard = ({ product, onBuyNow, disabled }: { product: Product; onBuyN
         }}
         disabled={disabled}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = colors.green10;
+          e.currentTarget.style.backgroundColor = colors.violet10;
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = colors.green9;
+          e.currentTarget.style.backgroundColor = colors.violet9;
         }}
         onClick={() => onBuyNow(product)}
       >
@@ -370,7 +367,7 @@ const IndexPage: NextPage = () => {
         <title>Storefront Setup</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-      <main style={{ maxWidth: 720, margin: "0 auto", padding: 16, backgroundColor: colors.gray1, minHeight: "100vh" }}>
+      <main style={{ maxWidth: 720, margin: "0 auto", padding: 16, backgroundColor: "transparent", minHeight: "100vh" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: colors.gray12 }}>
             {isConnected ? "Your Store" : "Welcome, let's get you connected."}
@@ -434,8 +431,8 @@ const IndexPage: NextPage = () => {
                   padding: "16px 32px", 
                   borderRadius: 8, 
                   border: "none", 
-                  background: isConnecting || loading ? colors.gray4 : colors.blue9, 
-                  color: isConnecting || loading ? colors.gray9 : colors.blue12,
+                  background: isConnecting || loading ? colors.gray4 : colors.violet9, 
+                  color: isConnecting || loading ? colors.gray9 : colors.gray12,
                   fontSize: 16,
                   fontWeight: 600,
                   cursor: isConnecting || loading ? "not-allowed" : "pointer",
@@ -451,38 +448,24 @@ const IndexPage: NextPage = () => {
         {isConnected && showConnectedToast && (
           <div style={{ 
             padding: 16, 
-            backgroundColor: colors.green3, 
+            backgroundColor: colors.violet3, 
             borderRadius: 8, 
             marginBottom: 16,
-            border: `1px solid ${colors.green6}`
+            border: `1px solid ${colors.violet6}`
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <span style={{ color: colors.green11, fontSize: 18 }}>✅</span>
-              <span style={{ fontWeight: 600, color: colors.green12 }}>Connected to {shopDomain}</span>
+              <span style={{ color: colors.violet11, fontSize: 18 }}>✅</span>
+              <span style={{ fontWeight: 600, color: colors.gray12 }}>Connected to {shopDomain}</span>
             </div>
-            <div style={{ color: colors.green11, fontSize: 14 }}>
+            <div style={{ color: colors.violet11, fontSize: 14 }}>
               Your store is connected and products are loaded below.
             </div>
           </div>
         )}
 
-        {showConnectedToast && (
-          <div style={{ 
-            padding: 12, 
-            marginBottom: 16, 
-            backgroundColor: colors.green3, 
-            color: colors.green12, 
-            border: `1px solid ${colors.green6}`, 
-            borderRadius: 8,
-            textAlign: "center"
-          }}>
-            ✅ Successfully connected to Shopify! Loading products...
-          </div>
-        )}
-
         {loading && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: 24 }}>
-            <SpinnerDotted size={50} color={colors.blue9} />
+            <SpinnerDotted size={50} color={colors.violet9} />
             <div style={{ marginTop: 16, fontSize: 16, color: colors.gray11 }}>Loading your products...</div>
           </div>
         )}
@@ -570,8 +553,8 @@ const IndexPage: NextPage = () => {
                     padding: "10px 20px",
                     borderRadius: 6,
                     border: "none",
-                    background: colors.blue9,
-                    color: colors.blue12,
+                    background: colors.violet9,
+                    color: colors.gray12,
                     cursor: "pointer",
                     fontSize: 14
                   }}
