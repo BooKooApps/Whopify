@@ -26,7 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const secret = process.env.INSTALL_SIGNING_SECRET;
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!secret || !apiBase) {
+  if (!secret) {
     return res.status(500).json({ error: "Server not configured" });
   }
 
@@ -36,7 +36,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const sig = crypto.createHmac("sha256", secret).update(payloadB64).digest();
   const token = `${payloadB64}.${base64url(sig)}`;
 
-  const url = new URL(`${apiBase.replace(/\/$/, "")}/shopify/install`);
+  // Prefer integrated API if no external base is configured
+  const origin = `${req.headers["x-forwarded-proto"] || "http"}://${req.headers.host}`;
+  const base = apiBase && apiBase.trim().length > 0 ? apiBase.replace(/\/$/, "") : `${origin}/api`;
+  const url = new URL(`${base}/shopify/install`);
   url.searchParams.set("shop", shop);
   url.searchParams.set("experienceId", experienceId);
   url.searchParams.set("auth", token);
