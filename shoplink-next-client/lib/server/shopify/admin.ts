@@ -129,6 +129,229 @@ export async function fetchProductsAdmin({ shop, adminAccessToken, first = 20 }:
   }));
 }
 
+export async function fetchShopInfo({ shop, adminAccessToken }: { shop: string; adminAccessToken: string }) {
+  const query = /* GraphQL */ `
+    query ShopInfo {
+      shop {
+        id
+        name
+        email
+        domain
+        myshopifyDomain
+        currency
+        timezone
+        ianaTimezone
+        shopOwner
+        plan {
+          displayName
+          partnerDevelopment
+          shopifyPlus
+        }
+        address {
+          address1
+          address2
+          city
+          province
+          country
+          zip
+          phone
+        }
+        moneyFormat
+        moneyWithCurrencyFormat
+        moneyInEmailsFormat
+        moneyWithCurrencyInEmailsFormat
+        hasDiscounts
+        hasGiftCards
+        hasStorefront
+        setupRequired
+        forceSsl
+        checkoutApiSupported
+        multiLocationEnabled
+        taxesIncluded
+        taxShipping
+        countyTaxes
+        requiresExtraPaymentsAgreement
+        passwordEnabled
+        hasStorefront
+        eligibleForPayments
+        eligibleForCardReaderGiveaway
+        finances
+        primaryDomain {
+          host
+          sslEnabled
+          url
+        }
+        brand {
+          logo {
+            image {
+              url
+              altText
+            }
+          }
+          coverImage {
+            image {
+              url
+              altText
+            }
+          }
+        }
+        features {
+          storefront
+          multiLocation
+          advancedReportBuilder
+          giftCards
+          internationalization
+          manualOrderCreation
+          draftOrderCreation
+          customerAccounts
+          abandonedCheckouts
+          discountCodes
+          automaticDiscounts
+          priceRules
+          giftCardSales
+          multiLocationInventory
+          multiLocationFulfillment
+          multiLocationReporting
+          multiLocationInventoryTracking
+          multiLocationFulfillmentTracking
+          multiLocationReportingTracking
+          multiLocationInventoryTrackingTracking
+          multiLocationFulfillmentTrackingTracking
+          multiLocationReportingTrackingTracking
+        }
+        billingAddress {
+          address1
+          address2
+          city
+          province
+          country
+          zip
+          phone
+        }
+        customerEmail
+        currencyCode
+        currencySymbol
+        weightUnit
+        unitSystem
+        timezoneAbbreviation
+        timezoneOffset
+        createdAt
+        updatedAt
+      }
+    }
+  `;
+  
+  const res = await adminGraphQL<{
+    shop: {
+      id: string;
+      name: string;
+      email: string;
+      domain: string;
+      myshopifyDomain: string;
+      currency: string;
+      timezone: string;
+      ianaTimezone: string;
+      shopOwner: string;
+      plan: {
+        displayName: string;
+        partnerDevelopment: boolean;
+        shopifyPlus: boolean;
+      };
+      address: {
+        address1: string;
+        address2: string;
+        city: string;
+        province: string;
+        country: string;
+        zip: string;
+        phone: string;
+      };
+      moneyFormat: string;
+      moneyWithCurrencyFormat: string;
+      moneyInEmailsFormat: string;
+      moneyWithCurrencyInEmailsFormat: string;
+      hasDiscounts: boolean;
+      hasGiftCards: boolean;
+      hasStorefront: boolean;
+      setupRequired: boolean;
+      forceSsl: boolean;
+      checkoutApiSupported: boolean;
+      multiLocationEnabled: boolean;
+      taxesIncluded: boolean;
+      taxShipping: boolean;
+      countyTaxes: boolean;
+      requiresExtraPaymentsAgreement: boolean;
+      passwordEnabled: boolean;
+      eligibleForPayments: boolean;
+      eligibleForCardReaderGiveaway: boolean;
+      finances: boolean;
+      primaryDomain: {
+        host: string;
+        sslEnabled: boolean;
+        url: string;
+      };
+      brand: {
+        logo: {
+          image: {
+            url: string;
+            altText: string;
+          };
+        };
+        coverImage: {
+          image: {
+            url: string;
+            altText: string;
+          };
+        };
+      };
+      features: {
+        storefront: boolean;
+        multiLocation: boolean;
+        advancedReportBuilder: boolean;
+        giftCards: boolean;
+        internationalization: boolean;
+        manualOrderCreation: boolean;
+        draftOrderCreation: boolean;
+        customerAccounts: boolean;
+        abandonedCheckouts: boolean;
+        discountCodes: boolean;
+        automaticDiscounts: boolean;
+        priceRules: boolean;
+        giftCardSales: boolean;
+        multiLocationInventory: boolean;
+        multiLocationFulfillment: boolean;
+        multiLocationReporting: boolean;
+        multiLocationInventoryTracking: boolean;
+        multiLocationFulfillmentTracking: boolean;
+        multiLocationReportingTracking: boolean;
+        multiLocationInventoryTrackingTracking: boolean;
+        multiLocationFulfillmentTrackingTracking: boolean;
+        multiLocationReportingTrackingTracking: boolean;
+      };
+      billingAddress: {
+        address1: string;
+        address2: string;
+        city: string;
+        province: string;
+        country: string;
+        zip: string;
+        phone: string;
+      };
+      customerEmail: string;
+      currencyCode: string;
+      currencySymbol: string;
+      weightUnit: string;
+      unitSystem: string;
+      timezoneAbbreviation: string;
+      timezoneOffset: string;
+      createdAt: string;
+      updatedAt: string;
+    };
+  }>({ shop, adminAccessToken, query });
+  
+  return res.data?.shop;
+}
+
 export async function cartCreateStorefront({ shop, storefrontAccessToken, lines }: { shop: string; storefrontAccessToken: string; lines: Array<{ variantId: string; quantity?: number }>; }): Promise<{ checkoutUrl: string; cartId: string }> {
   const mutation = /* GraphQL */ `
     mutation CartCreate($input: CartInput) {

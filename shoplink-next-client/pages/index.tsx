@@ -21,6 +21,112 @@ type Product = {
   totalInventory?: number;
 };
 
+type ShopInfo = {
+  id: string;
+  name: string;
+  email: string;
+  domain: string;
+  myshopifyDomain: string;
+  currency: string;
+  timezone: string;
+  ianaTimezone: string;
+  shopOwner: string;
+  plan: {
+    displayName: string;
+    partnerDevelopment: boolean;
+    shopifyPlus: boolean;
+  };
+  address: {
+    address1: string;
+    address2: string;
+    city: string;
+    province: string;
+    country: string;
+    zip: string;
+    phone: string;
+  };
+  moneyFormat: string;
+  moneyWithCurrencyFormat: string;
+  moneyInEmailsFormat: string;
+  moneyWithCurrencyInEmailsFormat: string;
+  hasDiscounts: boolean;
+  hasGiftCards: boolean;
+  hasStorefront: boolean;
+  setupRequired: boolean;
+  forceSsl: boolean;
+  checkoutApiSupported: boolean;
+  multiLocationEnabled: boolean;
+  taxesIncluded: boolean;
+  taxShipping: boolean;
+  countyTaxes: boolean;
+  requiresExtraPaymentsAgreement: boolean;
+  passwordEnabled: boolean;
+  eligibleForPayments: boolean;
+  eligibleForCardReaderGiveaway: boolean;
+  finances: boolean;
+  primaryDomain: {
+    host: string;
+    sslEnabled: boolean;
+    url: string;
+  };
+  brand: {
+    logo: {
+      image: {
+        url: string;
+        altText: string;
+      };
+    };
+    coverImage: {
+      image: {
+        url: string;
+        altText: string;
+      };
+    };
+  };
+  features: {
+    storefront: boolean;
+    multiLocation: boolean;
+    advancedReportBuilder: boolean;
+    giftCards: boolean;
+    internationalization: boolean;
+    manualOrderCreation: boolean;
+    draftOrderCreation: boolean;
+    customerAccounts: boolean;
+    abandonedCheckouts: boolean;
+    discountCodes: boolean;
+    automaticDiscounts: boolean;
+    priceRules: boolean;
+    giftCardSales: boolean;
+    multiLocationInventory: boolean;
+    multiLocationFulfillment: boolean;
+    multiLocationReporting: boolean;
+    multiLocationInventoryTracking: boolean;
+    multiLocationFulfillmentTracking: boolean;
+    multiLocationReportingTracking: boolean;
+    multiLocationInventoryTrackingTracking: boolean;
+    multiLocationFulfillmentTrackingTracking: boolean;
+    multiLocationReportingTrackingTracking: boolean;
+  };
+  billingAddress: {
+    address1: string;
+    address2: string;
+    city: string;
+    province: string;
+    country: string;
+    zip: string;
+    phone: string;
+  };
+  customerEmail: string;
+  currencyCode: string;
+  currencySymbol: string;
+  weightUnit: string;
+  unitSystem: string;
+  timezoneAbbreviation: string;
+  timezoneOffset: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 const ProductCard = ({ product, onBuyNow, disabled }: { product: Product; onBuyNow: (p: Product) => void; disabled?: boolean }) => {
   const colors = useColors();
   
@@ -164,6 +270,8 @@ const IndexPage: NextPage = () => {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [editingShopDomain, setEditingShopDomain] = useState("");
   const [checkingOutId, setCheckingOutId] = useState<string | null>(null);
+  const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
+  const [loadingShopInfo, setLoadingShopInfo] = useState(false);
   
   const colors = useColors();
 
@@ -181,6 +289,7 @@ const IndexPage: NextPage = () => {
     
     if (savedConnected) {
       setIsConnected(true);
+      setTimeout(() => handleLoadShopInfo(), 500);
     }
     
     // Check for connected=1 in URL params
@@ -189,12 +298,12 @@ const IndexPage: NextPage = () => {
       if (urlParams.get("connected") === "1") {
         setShowConnectedToast(true);
         setIsConnected(true);
-        // Save connected state
         window.localStorage.setItem("is_connected", "true");
-        // Auto-hide toast after 3 seconds
         setTimeout(() => setShowConnectedToast(false), 3000);
-        // Auto-load products
-        setTimeout(() => handleLoadProducts(), 1000);
+        setTimeout(() => {
+          handleLoadShopInfo();
+          handleLoadProducts();
+        }, 1000);
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
       }
@@ -263,6 +372,31 @@ const IndexPage: NextPage = () => {
       setIsConnecting(false);
     }
   }
+
+  const handleLoadShopInfo = async () => {
+    setLoadingShopInfo(true);
+    try {
+      const b = normalizeBaseUrl(apiBase) || "";
+      if (!experienceId) throw new Error("Missing experienceId");
+      const url = `${b || "/api"}/shopify/shop?experienceId=${encodeURIComponent(experienceId)}&ngrok-skip-browser-warning=true`;
+      const res = await fetch(url, { headers: { "Accept": "application/json", "ngrok-skip-browser-warning": "true" } });
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.toLowerCase().includes("application/json")) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Expected JSON from ${new URL(url).host}, got ${ct || "unknown"}`);
+      }
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({} as any));
+        throw new Error(errJson?.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setShopInfo(data.shopInfo);
+    } catch (e: any) {
+      console.error("Failed to load shop info:", e.message);
+    } finally {
+      setLoadingShopInfo(false);
+    }
+  };
 
   const handleLoadProducts = async () => {
     setError(null);
@@ -346,6 +480,7 @@ const IndexPage: NextPage = () => {
     setShopDomain("");
     setEditingShopDomain("");
     setProducts([]);
+    setShopInfo(null);
     setIsConnected(false);
     setShowSettingsModal(false);
     setError(null);
@@ -361,7 +496,7 @@ const IndexPage: NextPage = () => {
     setEditingShopDomain(normalized);
     setShowSettingsModal(false);
     setError(null);
-    // Reload products with new store
+    handleLoadShopInfo();
     handleLoadProducts();
   };
 
@@ -373,9 +508,16 @@ const IndexPage: NextPage = () => {
       </Head>
       <main style={{ maxWidth: 720, margin: "0 auto", padding: 16, backgroundColor: "transparent", minHeight: "100vh" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: colors.gray12 }}>
-            {isConnected ? "Your Store" : "Welcome, let's get you connected."}
-          </h1>
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: colors.gray12 }}>
+              {isConnected ? (shopInfo?.name || "Your Store") : "Welcome, let's get you connected."}
+            </h1>
+            {isConnected && shopInfo && (
+              <div style={{ fontSize: 14, color: colors.gray11, marginTop: 4 }}>
+                {shopInfo.domain} • {shopInfo.plan.displayName} • {shopInfo.currency}
+              </div>
+            )}
+          </div>
           {isConnected && (
             <button
               onClick={() => setShowSettingsModal(true)}
@@ -467,10 +609,186 @@ const IndexPage: NextPage = () => {
           </div>
         )}
 
-        {loading && (
+        {isConnected && shopInfo && (
+          <div style={{ 
+            backgroundColor: colors.gray2, 
+            borderRadius: 12, 
+            padding: 20, 
+            marginBottom: 24,
+            border: `1px solid ${colors.gray6}`,
+            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              {shopInfo.brand?.logo?.image?.url && (
+                <img 
+                  src={shopInfo.brand.logo.image.url} 
+                  alt={shopInfo.brand.logo.image.altText || "Store Logo"}
+                  style={{ 
+                    width: 48, 
+                    height: 48, 
+                    borderRadius: 8,
+                    objectFit: "cover"
+                  }}
+                />
+              )}
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0, color: colors.gray12 }}>
+                  {shopInfo.name}
+                </h2>
+                <div style={{ fontSize: 14, color: colors.gray11 }}>
+                  {shopInfo.shopOwner} • {shopInfo.plan.displayName}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ 
+              display: "grid", 
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
+              gap: 16,
+              marginBottom: 16
+            }}>
+              <div>
+                <div style={{ fontSize: 12, color: colors.gray10, marginBottom: 4 }}>DOMAIN</div>
+                <div style={{ fontSize: 14, color: colors.gray12, fontWeight: 500 }}>
+                  {shopInfo.domain || shopInfo.myshopifyDomain}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: colors.gray10, marginBottom: 4 }}>CURRENCY</div>
+                <div style={{ fontSize: 14, color: colors.gray12, fontWeight: 500 }}>
+                  {shopInfo.currency} ({shopInfo.currencyCode})
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: colors.gray10, marginBottom: 4 }}>TIMEZONE</div>
+                <div style={{ fontSize: 14, color: colors.gray12, fontWeight: 500 }}>
+                  {shopInfo.timezone}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: colors.gray10, marginBottom: 4 }}>EMAIL</div>
+                <div style={{ fontSize: 14, color: colors.gray12, fontWeight: 500 }}>
+                  {shopInfo.email}
+                </div>
+              </div>
+            </div>
+
+            {shopInfo.address && (shopInfo.address.address1 || shopInfo.address.city) && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, color: colors.gray10, marginBottom: 4 }}>ADDRESS</div>
+                <div style={{ fontSize: 14, color: colors.gray12 }}>
+                  {[shopInfo.address.address1, shopInfo.address.city, shopInfo.address.province, shopInfo.address.country]
+                    .filter(Boolean)
+                    .join(", ")}
+                </div>
+              </div>
+            )}
+
+            <div style={{ 
+              display: "flex", 
+              flexWrap: "wrap", 
+              gap: 8,
+              marginBottom: 16
+            }}>
+              {shopInfo.hasDiscounts && (
+                <span style={{
+                  fontSize: 12,
+                  padding: "4px 8px",
+                  backgroundColor: colors.green3,
+                  color: colors.green11,
+                  borderRadius: 6,
+                  fontWeight: 500
+                }}>
+                  Discounts
+                </span>
+              )}
+              {shopInfo.hasGiftCards && (
+                <span style={{
+                  fontSize: 12,
+                  padding: "4px 8px",
+                  backgroundColor: colors.blue3,
+                  color: colors.blue11,
+                  borderRadius: 6,
+                  fontWeight: 500
+                }}>
+                  Gift Cards
+                </span>
+              )}
+              {shopInfo.multiLocationEnabled && (
+                <span style={{
+                  fontSize: 12,
+                  padding: "4px 8px",
+                  backgroundColor: colors.blue3,
+                  color: colors.blue11,
+                  borderRadius: 6,
+                  fontWeight: 500
+                }}>
+                  Multi-Location
+                </span>
+              )}
+              {shopInfo.plan.shopifyPlus && (
+                <span style={{
+                  fontSize: 12,
+                  padding: "4px 8px",
+                  backgroundColor: colors.amber3,
+                  color: colors.amber11,
+                  borderRadius: 6,
+                  fontWeight: 500
+                }}>
+                  Shopify Plus
+                </span>
+              )}
+              {shopInfo.eligibleForPayments && (
+                <span style={{
+                  fontSize: 12,
+                  padding: "4px 8px",
+                  backgroundColor: colors.violet3,
+                  color: colors.violet11,
+                  borderRadius: 6,
+                  fontWeight: 500
+                }}>
+                  Payments Ready
+                </span>
+              )}
+            </div>
+
+            <div style={{ 
+              display: "grid", 
+              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", 
+              gap: 12,
+              fontSize: 12,
+              color: colors.gray10
+            }}>
+              <div>
+                <div style={{ marginBottom: 2 }}>Money Format</div>
+                <div style={{ color: colors.gray12, fontSize: 11 }}>{shopInfo.moneyFormat}</div>
+              </div>
+              <div>
+                <div style={{ marginBottom: 2 }}>Weight Unit</div>
+                <div style={{ color: colors.gray12, fontSize: 11 }}>{shopInfo.weightUnit}</div>
+              </div>
+              <div>
+                <div style={{ marginBottom: 2 }}>Taxes Included</div>
+                <div style={{ color: colors.gray12, fontSize: 11 }}>
+                  {shopInfo.taxesIncluded ? "Yes" : "No"}
+                </div>
+              </div>
+              <div>
+                <div style={{ marginBottom: 2 }}>SSL Enabled</div>
+                <div style={{ color: colors.gray12, fontSize: 11 }}>
+                  {shopInfo.primaryDomain?.sslEnabled ? "Yes" : "No"}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {(loading || loadingShopInfo) && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: 24 }}>
             <SpinnerDotted size={50} color={colors.violet9} />
-            <div style={{ marginTop: 16, fontSize: 16, color: colors.gray11 }}>Loading your products...</div>
+            <div style={{ marginTop: 16, fontSize: 16, color: colors.gray11 }}>
+              {loadingShopInfo ? "Loading store information..." : "Loading your products..."}
+            </div>
           </div>
         )}
         {error && (
