@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getEnv } from "../../../lib/server/utils/env";
-import { createState, saveState, buildInstallUrl } from "../../../lib/server/shopify/utils";
+import { createState, saveState, buildInstallUrl, verifyInstallAuthToken } from "../../../lib/server/shopify/utils";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
@@ -20,6 +20,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    if (!auth) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const verified = verifyInstallAuthToken(auth, experienceId);
+    if (!verified) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    if (!/\.myshopify\.com$/i.test( String(shop).trim().toLowerCase())) {
+      return res.status(400).json({ error: "Invalid shop domain" });
+    }
+
     const { SHOPIFY_API_KEY } = getEnv();
     const state = createState({ experienceId, returnUrl });
     await saveState(state);
@@ -29,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const origin = `${proto}://${host}`.replace("http://127.0.0.1:", "http://localhost:");
     
     const installUrl = buildInstallUrl({ 
-      shop, 
+      shop:  String(shop).trim().toLowerCase(), 
       state, 
       clientId: SHOPIFY_API_KEY, 
       appBaseUrl: origin 

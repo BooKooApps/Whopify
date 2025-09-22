@@ -280,30 +280,21 @@ const IndexPage: NextPage = () => {
 
   useEffect(() => {
     const savedShop = typeof window !== "undefined" ? window.localStorage.getItem("shop_domain") : null;
-    const savedConnected = typeof window !== "undefined" ? window.localStorage.getItem("is_connected") === "true" : false;
     
     if (savedShop) {
       setShopDomain(savedShop);
       setEditingShopDomain(savedShop);
     }
     
-    if (savedConnected) {
-      setIsConnected(true);
-      setTimeout(() => handleLoadShopInfo(), 500);
-    }
-    
-    // Check for connected=1 in URL params
+    setTimeout(() => handleLoadShopInfo(), 300);
+
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get("connected") === "1") {
+      const justInstalled = urlParams.get("installed") === "1" || urlParams.get("connected") === "1";
+      if (justInstalled) {
         setShowConnectedToast(true);
-        setIsConnected(true);
-        window.localStorage.setItem("is_connected", "true");
         setTimeout(() => setShowConnectedToast(false), 3000);
-        setTimeout(() => {
-          handleLoadShopInfo();
-          handleLoadProducts();
-        }, 1000);
+        setTimeout(() => { handleLoadShopInfo(); }, 800);
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
       }
@@ -356,7 +347,7 @@ const IndexPage: NextPage = () => {
     setError(null);
 
     try {
-      const returnUrl = `${window.location.origin}?connected=1&shop=${encodeURIComponent(normalized)}`;
+      const returnUrl = `${window.location.origin}?installed=1&shop=${encodeURIComponent(normalized)}`;
       const qs = new URLSearchParams({ shop: normalized, experienceId: String(experienceId), returnUrl });
       const resp = await fetch(`/api/shopify/install/start?${qs.toString()}`, { headers: { Accept: "application/json" } });
       if (!resp.ok) {
@@ -391,8 +382,10 @@ const IndexPage: NextPage = () => {
       }
       const data = await res.json();
       setShopInfo(data.shopInfo);
+      setIsConnected(true);
     } catch (e: any) {
       console.error("Failed to load shop info:", e.message);
+      setIsConnected(false);
     } finally {
       setLoadingShopInfo(false);
     }
@@ -497,7 +490,6 @@ const IndexPage: NextPage = () => {
     setShowSettingsModal(false);
     setError(null);
     handleLoadShopInfo();
-    handleLoadProducts();
   };
 
   return (
@@ -604,7 +596,7 @@ const IndexPage: NextPage = () => {
               <span style={{ fontWeight: 600, color: colors.gray12 }}>Connected to {shopDomain}</span>
             </div>
             <div style={{ color: colors.violet11, fontSize: 14 }}>
-              Your store is connected and products are loaded below.
+              Your store is connected.
             </div>
           </div>
         )}
