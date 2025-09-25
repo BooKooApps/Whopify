@@ -1,6 +1,8 @@
 import { NextPage } from "next";
 import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
+import type { GetServerSideProps } from "next";
+import { getToken } from "next-auth/jwt";
 import { SpinnerDotted } from "spinners-react";
 import { useColors } from "../hooks/use-colors";
 
@@ -259,7 +261,11 @@ const ProductCard = ({ product, onBuyNow, disabled }: { product: Product; onBuyN
   );
 };
 
-const IndexPage: NextPage = () => {
+type IndexPageProps = {
+  experienceId: string;
+};
+
+const IndexPage: NextPage<IndexPageProps> = ({ experienceId }) => {
   const [shopDomain, setShopDomain] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -275,7 +281,6 @@ const IndexPage: NextPage = () => {
   
   const colors = useColors();
 
-  const experienceId = useMemo(() => process.env.NEXT_PUBLIC_WHOP_APP_ID ?? "", []);
   const apiBase = useMemo(() => "", []);
 
   useEffect(() => {
@@ -295,7 +300,6 @@ const IndexPage: NextPage = () => {
         setShowConnectedToast(true);
         setTimeout(() => setShowConnectedToast(false), 3000);
         setTimeout(() => { handleLoadShopInfo(); }, 800);
-        // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
@@ -305,6 +309,12 @@ const IndexPage: NextPage = () => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem("shop_domain", shopDomain || "");
   }, [shopDomain]);
+
+  useEffect(() => {
+    if (isConnected && shopInfo) {
+      handleLoadProducts();
+    }
+  }, [isConnected, shopInfo]);
 
   function normalizeBaseUrl(input: string): string | null {
     const raw = (input || "").trim();
@@ -383,6 +393,14 @@ const IndexPage: NextPage = () => {
       const data = await res.json();
       setShopInfo(data.shopInfo);
       setIsConnected(true);
+      
+      if (data.shopInfo?.myshopifyDomain) {
+        setShopDomain(data.shopInfo.myshopifyDomain);
+        setEditingShopDomain(data.shopInfo.myshopifyDomain);
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("shop_domain", data.shopInfo.myshopifyDomain);
+        }
+      }
     } catch (e: any) {
       console.error("Failed to load shop info:", e.message);
       setIsConnected(false);
@@ -425,7 +443,6 @@ const IndexPage: NextPage = () => {
         totalInventory: n.totalInventory ?? null,
       }));
       
-      // Add 2-second delay for cool loading effect
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       setProducts(items);
@@ -506,11 +523,11 @@ const IndexPage: NextPage = () => {
             </h1>
             {isConnected && shopInfo && (
               <div style={{ fontSize: 14, color: colors.gray11, marginTop: 4 }}>
-                {shopInfo.domain} • {shopInfo.plan.displayName} • {shopInfo.currency}
+                {/* {shopInfo.domain} • {shopInfo.plan.displayName} • {shopInfo.currency} */}
               </div>
             )}
           </div>
-          {isConnected && (
+          {isMerchantView && isConnected && (
             <button
               onClick={() => setShowSettingsModal(true)}
               style={{
@@ -601,7 +618,7 @@ const IndexPage: NextPage = () => {
           </div>
         )}
 
-        {isConnected && shopInfo && (
+        {/* {isConnected && shopInfo && (
           <div style={{ 
             backgroundColor: colors.gray2, 
             borderRadius: 12, 
@@ -773,7 +790,7 @@ const IndexPage: NextPage = () => {
               </div>
             </div>
           </div>
-        )}
+        )} */}
 
         {(loading || loadingShopInfo) && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: 24 }}>
@@ -801,7 +818,7 @@ const IndexPage: NextPage = () => {
         )}
 
         {/* Settings Modal */}
-        {showSettingsModal && (
+        {isMerchantView && showSettingsModal && (
           <div style={{
             position: "fixed",
             top: 0,
@@ -846,21 +863,7 @@ const IndexPage: NextPage = () => {
                 />
               </div>
 
-              <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
-                <button
-                  onClick={() => setShowSettingsModal(false)}
-                  style={{
-                    padding: "10px 20px",
-                    borderRadius: 6,
-                    border: `1px solid ${colors.gray6}`,
-                    background: colors.gray4,
-                    color: colors.gray11,
-                    cursor: "pointer",
-                    fontSize: 14
-                  }}
-                >
-                  Cancel
-                </button>
+              <div style={{ display: "flex", gap: 12, justifyContent: "flex-start" }}>
                 <button
                   onClick={handleUpdateStore}
                   style={{
@@ -870,7 +873,8 @@ const IndexPage: NextPage = () => {
                     background: colors.violet9,
                     color: colors.gray12,
                     cursor: "pointer",
-                    fontSize: 14
+                    fontSize: 14,
+                    display: `${editingShopDomain === shopDomain ? "none" : "block"}`
                   }}
                 >
                   Update Store
@@ -905,6 +909,21 @@ const IndexPage: NextPage = () => {
                   Delete Store
                 </button>
               </div>
+              <br/>
+              <button
+                  onClick={() => setShowSettingsModal(false)}
+                  style={{
+                    padding: "10px 20px",
+                    borderRadius: 6,
+                    border: `1px solid ${colors.gray6}`,
+                    background: colors.gray4,
+                    color: colors.gray11,
+                    cursor: "pointer",
+                    fontSize: 14
+                  }}
+                >
+                  Close
+                </button>
             </div>
           </div>
         )}
@@ -914,3 +933,31 @@ const IndexPage: NextPage = () => {
 };
 
 export default IndexPage;
+
+export const getServerSideProps: GetServerSideProps<IndexPageProps> = async (ctx) => {
+  const token = await getToken({ req: ctx.req, secret: process.env.NEXTAUTH_SECRET });
+  if (!token || token.role !== "merchant") {
+    return {
+      redirect: {
+        destination: "/unauthorized",
+        permanent: false,
+      },
+    };
+  }
+
+  const experienceId = Array.isArray(token.experiences) && token.experiences.length > 0 ? token.experiences[0] : null;
+  if (!experienceId) {
+    return {
+      redirect: {
+        destination: "/unauthorized",
+        permanent: false,
+      },
+    };
+  }
+
+  return {
+    props: {
+      experienceId,
+    },
+  };
+};
