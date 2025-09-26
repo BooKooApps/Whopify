@@ -280,6 +280,7 @@ const IndexPage: NextPage<IndexPageProps> = ({ experienceId }) => {
   const [loadingShopInfo, setLoadingShopInfo] = useState(false);
   
   const colors = useColors();
+  const isMerchantView = true;
 
   const apiBase = useMemo(() => "", []);
 
