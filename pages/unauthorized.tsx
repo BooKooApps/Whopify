@@ -10,11 +10,6 @@ export default function Unauthorized() {
         please return to Whop and open the app from there so we can verify your role
         (merchant vs customer) and grant access.
       </p>
-      <div style={{ marginTop: 16, fontSize: 14 }}>
-        Merchant: open this app from your Whop dashboard so we can establish your session.
-        <br/>
-        Customer: follow the link provided inside Whop for the experience you own.
-      </div>
     </main>
   );
 }
