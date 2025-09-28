@@ -935,7 +935,37 @@ const IndexPage: NextPage<IndexPageProps> = ({ experienceId }) => {
 
 export default IndexPage;
 
+function parseCookie(header: string | undefined) {
+  const out: Record<string, string> = {};
+  if (!header) return out;
+  header.split(/;\s*/).forEach((p) => {
+    const i = p.indexOf("=");
+    if (i > -1) out[p.slice(0, i)] = decodeURIComponent(p.slice(i + 1));
+  });
+  return out;
+}
+
 export const getServerSideProps: GetServerSideProps<IndexPageProps> = async (ctx) => {
+  // Debug: Log Whop user info
+  try {
+    const cookies = parseCookie(ctx.req.headers.cookie);
+    const bearer = cookies["whop_user_token"] || (ctx.req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+    console.log("=== WHOP DEBUG ===");
+    console.log("Cookies:", Object.keys(cookies));
+    console.log("Has whop_user_token:", !!cookies["whop_user_token"]);
+    console.log("Bearer token present:", !!bearer);
+    
+    if (bearer) {
+      const base = process.env.WHOP_API_BASE_URL || "https://api.whop.com";
+      const response = await fetch(`${base}/me`, { headers: { Authorization: `Bearer ${bearer}` } });
+      const me = await response.json().catch(() => ({} as any));
+      console.log("Whop /me response:", response.status, me);
+    }
+    console.log("==================");
+  } catch (e: any) {
+    console.log("Whop debug error:", e?.message);
+  }
+
   const token = await getToken({ req: ctx.req, secret: process.env.NEXTAUTH_SECRET });
   if (!token || token.role !== "merchant") {
     return {
