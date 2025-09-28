@@ -988,7 +988,7 @@ export const getServerSideProps: GetServerSideProps<IndexPageProps> = async (ctx
     
     return {
       redirect: {
-        destination: `/ssr/${experienceId}`,
+        destination: `/experiences/${experienceId}`,
         permanent: false,
       },
     };
