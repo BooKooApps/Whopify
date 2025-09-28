@@ -951,9 +951,18 @@ export const getServerSideProps: GetServerSideProps<IndexPageProps> = async (ctx
     const cookies = parseCookie(ctx.req.headers.cookie);
     const bearer = cookies["whop_user_token"] || (ctx.req.headers.authorization || "").replace(/^Bearer\s+/i, "");
     console.log("=== WHOP DEBUG ===");
+    console.log("Request URL:", ctx.req.url);
+    console.log("Request headers:", Object.keys(ctx.req.headers));
     console.log("Cookies:", Object.keys(cookies));
     console.log("Has whop_user_token:", !!cookies["whop_user_token"]);
     console.log("Bearer token present:", !!bearer);
+    console.log("Referer:", ctx.req.headers.referer);
+    console.log("User-Agent:", ctx.req.headers['user-agent']);
+    
+    // Check for other possible Whop tokens
+    const allCookies = Object.keys(cookies);
+    const whopCookies = allCookies.filter(name => name.toLowerCase().includes('whop'));
+    console.log("Whop-related cookies:", whopCookies);
     
     if (bearer) {
       const base = process.env.WHOP_API_BASE_URL || "https://api.whop.com";
