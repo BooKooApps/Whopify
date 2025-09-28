@@ -46,24 +46,62 @@ const StorefrontPage: NextPage<Props> = ({ experienceId, shopDomain, products, e
 };
 
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
+  console.log("=== CUSTOMER STOREFRONT DEBUG ===");
+  console.log("Experience ID:", ctx.params?.experienceId);
+  console.log("Request URL:", ctx.req.url);
+  console.log("Query params:", ctx.query);
+  console.log("Request headers:", Object.keys(ctx.req.headers));
+  console.log("Cookies:", Object.keys(parseCookie(ctx.req.headers.cookie)));
+  
+  // Check for Whop token in various places
+  const whopToken = 
+    ctx.query.whop_token as string ||
+    ctx.req.headers['x-whop-token'] as string ||
+    parseCookie(ctx.req.headers.cookie)['whop_user_token'] ||
+    ctx.req.headers.authorization?.replace(/^Bearer\s+/i, '');
+    
+  console.log("Whop token found:", !!whopToken);
+  console.log("Token source:", whopToken ? "found" : "not found");
+  console.log("=================================");
+  
   const experienceId = String(ctx.params?.experienceId || "");
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-  if (!experienceId || !apiBase) {
-    return { props: { experienceId, shopDomain: null, products: [], error: "Missing configuration" } };
-  }
-  try {
-    const url = `${apiBase.replace(/\/$/, "")}/shopify/products?experienceId=${encodeURIComponent(experienceId)}`;
-    const resp = await fetch(url, { headers: { Accept: "application/json" } });
-    const data = await resp.json();
-    if (!resp.ok) {
-      throw new Error(data?.error || `HTTP ${resp.status}`);
+  
+  // For now, return mock data to test the page
+  const mockProducts: Product[] = [
+    {
+      id: "1",
+      title: "Test Product 1",
+      imageUrl: null,
+      price: "29.99",
+      handle: "test-product-1"
+    },
+    {
+      id: "2", 
+      title: "Test Product 2",
+      imageUrl: null,
+      price: "49.99",
+      handle: "test-product-2"
     }
-    const products: Product[] = (data.products || []).map((n: any) => ({ id: n.id, title: n.title, imageUrl: n.imageUrl ?? null, price: n.price ?? null, handle: n.handle ?? null }));
-    return { props: { experienceId, shopDomain: data.shopDomain || null, products } };
-  } catch (e: any) {
-    return { props: { experienceId, shopDomain: null, products: [], error: e?.message || "Failed to load products" } };
-  }
+  ];
+  
+  return { 
+    props: { 
+      experienceId, 
+      shopDomain: "test-shop.myshopify.com", 
+      products: mockProducts 
+    } 
+  };
 };
+
+function parseCookie(header: string | undefined) {
+  const out: Record<string, string> = {};
+  if (!header) return out;
+  header.split(/;\s*/).forEach((p) => {
+    const i = p.indexOf("=");
+    if (i > -1) out[p.slice(0, i)] = decodeURIComponent(p.slice(i + 1));
+  });
+  return out;
+}
 
 export default StorefrontPage;
 
