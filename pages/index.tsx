@@ -975,6 +975,26 @@ export const getServerSideProps: GetServerSideProps<IndexPageProps> = async (ctx
     console.log("Whop debug error:", e?.message);
   }
 
+  // Check if this is a Whop request (customer access)
+  const isWhopRequest = ctx.req.headers['user-agent']?.includes('vercel-screenshot') || 
+                       ctx.req.headers.referer?.includes('whop.com') ||
+                       ctx.req.headers['x-forwarded-host']?.includes('whop.com');
+  
+  if (isWhopRequest) {
+    // This is a Whop customer request - redirect to customer storefront
+    // We need to extract the experience ID from the Whop context
+    // For now, let's use a default or extract from headers
+    const experienceId = ctx.req.headers['x-whop-experience-id'] as string || 'exp_R7TZ3eFqNqQG0H';
+    
+    return {
+      redirect: {
+        destination: `/ssr/${experienceId}`,
+        permanent: false,
+      },
+    };
+  }
+
+  // This is a direct access - check for merchant authentication
   const token = await getToken({ req: ctx.req, secret: process.env.NEXTAUTH_SECRET });
   if (!token || token.role !== "merchant") {
     return {
