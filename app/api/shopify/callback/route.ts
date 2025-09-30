@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       console.warn('Webhook registration failed:', e.message);
     }
 
-    const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
+    const stateData = JSON.parse(Buffer.from(state, 'base64url').toString());
     const experienceId = stateData.experienceId;
     
     if (experienceId) {

@@ -1,4 +1,4 @@
-import { sql } from '@vercel/postgres';
+import postgres from 'postgres';
 
 export type ShopRecord = {
   shopDomain: string;
@@ -8,13 +8,29 @@ export type ShopRecord = {
   updatedAt?: string;
 };
 
+let sql: ReturnType<typeof postgres> | null = null;
+
+function getSql() {
+  if (!sql) {
+    const postgresUrl = process.env.POSTGRES_URL;
+    if (!postgresUrl) {
+      throw new Error('POSTGRES_URL environment variable is required');
+    }
+    sql = postgres(postgresUrl, {
+      ssl: process.env.NODE_ENV === 'production' ? 'require' : false,
+    });
+  }
+  return sql;
+}
+
 export const postgresStorage = {
   async saveShop(record: ShopRecord) {
     const now = new Date().toISOString();
+    const db = getSql();
     
-    await sql`
+    await db`
       INSERT INTO shops (shop_domain, admin_access_token, storefront_access_token, created_at, updated_at)
-      VALUES (${record.shopDomain}, ${record.adminAccessToken}, ${record.storefrontAccessToken || null}, ${now}, ${now})
+      VALUES (${record.shopDomain}, ${record.adminAccessToken}, ${record.storefrontAccessToken || null}, ${record.createdAt || now}, ${now})
       ON CONFLICT (shop_domain) 
       DO UPDATE SET 
         admin_access_token = EXCLUDED.admin_access_token,
@@ -23,16 +39,17 @@ export const postgresStorage = {
     `;
   },
 
-  async getShop(shopDomain: string) {
-    const result = await sql`
+  async getShop(shopDomain: string): Promise<ShopRecord | undefined> {
+    const db = getSql();
+    const result = await db`
       SELECT shop_domain, admin_access_token, storefront_access_token, created_at, updated_at
       FROM shops 
       WHERE shop_domain = ${shopDomain}
     `;
     
-    if (result.rows.length === 0) return undefined;
+    if (result.length === 0) return undefined;
     
-    const row = result.rows[0];
+    const row = result[0];
     return {
       shopDomain: row.shop_domain,
       adminAccessToken: row.admin_access_token,
@@ -43,27 +60,28 @@ export const postgresStorage = {
   },
 
   async saveExperienceMapping(experienceId: string, shopDomain: string) {
-    await sql`
+    const db = getSql();
+    
+    await db`
       INSERT INTO experiences (experience_id, shop_domain, created_at)
-      VALUES (${experienceId}, ${shopDomain}, ${new Date().toISOString()})
+      VALUES (${experienceId}, ${shopDomain}, NOW())
       ON CONFLICT (experience_id) 
-      DO UPDATE SET 
-        shop_domain = EXCLUDED.shop_domain,
-        created_at = EXCLUDED.created_at
+      DO UPDATE SET shop_domain = EXCLUDED.shop_domain
     `;
   },
 
-  async getShopByExperience(experienceId: string) {
-    const result = await sql`
+  async getShopByExperience(experienceId: string): Promise<ShopRecord | undefined> {
+    const db = getSql();
+    const result = await db`
       SELECT s.shop_domain, s.admin_access_token, s.storefront_access_token, s.created_at, s.updated_at
       FROM shops s
-      JOIN experiences em ON s.shop_domain = em.shop_domain
-      WHERE em.experience_id = ${experienceId}
+      JOIN experiences e ON s.shop_domain = e.shop_domain
+      WHERE e.experience_id = ${experienceId}
     `;
     
-    if (result.rows.length === 0) return undefined;
+    if (result.length === 0) return undefined;
     
-    const row = result.rows[0];
+    const row = result[0];
     return {
       shopDomain: row.shop_domain,
       adminAccessToken: row.admin_access_token,
@@ -74,30 +92,37 @@ export const postgresStorage = {
   },
 
   async disconnectShop(experienceId: string) {
-    // Get the shop domain for this experience
-    const mappingResult = await sql`
-      SELECT shop_domain FROM experiences WHERE experience_id = ${experienceId}
+    const db = getSql();
+    
+    const result = await db`
+      DELETE FROM experiences 
+      WHERE experience_id = ${experienceId}
+      RETURNING shop_domain
     `;
     
-    if (mappingResult.rows.length === 0) {
-      return { success: false, message: "No shop connected to this experience" };
+    if (result.length === 0) {
+      return { success: false, message: `No shop found for experience ${experienceId}` };
     }
     
-    const shopDomain = mappingResult.rows[0].shop_domain;
+    const shopDomain = result[0].shop_domain;
     
-    // Remove experience mapping
-    await sql`DELETE FROM experiences WHERE experience_id = ${experienceId}`;
+    const shopExperiences = await db`
+      SELECT COUNT(*) as count FROM experiences WHERE shop_domain = ${shopDomain}
+    `;
     
-    // Remove shop data
-    await sql`DELETE FROM shops WHERE shop_domain = ${shopDomain}`;
+    if (parseInt(shopExperiences[0].count) === 0) {
+      await db`
+        DELETE FROM shops WHERE shop_domain = ${shopDomain}
+      `;
+    }
     
-    console.log(`✅ Disconnected shop ${shopDomain} from experience ${experienceId}`);
     return { success: true, message: `Disconnected shop ${shopDomain}` };
   },
 
   async initTables() {
-    // Create shops table
-    await sql`
+    const db = getSql();
+    
+    await db`
       CREATE TABLE IF NOT EXISTS shops (
         shop_domain VARCHAR(255) PRIMARY KEY,
         admin_access_token TEXT NOT NULL,
@@ -107,8 +132,7 @@ export const postgresStorage = {
       )
     `;
     
-    // Create experience mappings table
-    await sql`
+    await db`
       CREATE TABLE IF NOT EXISTS experiences (
         experience_id VARCHAR(255) PRIMARY KEY,
         shop_domain VARCHAR(255) NOT NULL,
