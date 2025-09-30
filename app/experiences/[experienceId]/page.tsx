@@ -1,5 +1,6 @@
 import { whopSdk } from "../../../lib/whop-sdk";
 import { headers } from "next/headers";
+import Image from "next/image";
 import ConnectStoreForm from "./ConnectStoreForm";
 
 type Product = {
@@ -88,11 +89,11 @@ export default async function StorefrontPage({ params, searchParams }: { params:
 
 
   // Check shop connection status
-  let shopDomain = null;
-  let shopName = null;
+  let shopDomain: string | null = null;
+  let shopName: string | null = null;
   let products: Product[] = [];
   let isConnected = false;
-  let shopError = null;
+  let shopError: string | null = null;
 
   if (user && hasAccess) {
     try {
@@ -175,7 +176,7 @@ export default async function StorefrontPage({ params, searchParams }: { params:
                 <div key={p.id} style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12, backgroundColor: "white" }}>
                   <div style={{ fontWeight: 600, marginBottom: 8, color: "black" }}>{p.title}</div>
                   <div style={{ height: 160, background: "#f4f4f4", borderRadius: 6, marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                    {p.imageUrl ? <img src={p.imageUrl} alt={p.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "black" }}>No Image</span>}
+                    {p.imageUrl ? <Image src={p.imageUrl} alt={p.title} width={220} height={160} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "black" }}>No Image</span>}
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ fontWeight: 700, color: "black" }}>{p.price ? `$${p.price}` : "Price N/A"}</div>
@@ -218,7 +219,7 @@ export default async function StorefrontPage({ params, searchParams }: { params:
                 <div key={p.id} style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12, backgroundColor: "white" }}>
                   <div style={{ fontWeight: 600, marginBottom: 8, color: "black" }}>{p.title}</div>
                   <div style={{ height: 160, background: "#f4f4f4", borderRadius: 6, marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                    {p.imageUrl ? <img src={p.imageUrl} alt={p.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "black" }}>No Image</span>}
+                    {p.imageUrl ? <Image src={p.imageUrl} alt={p.title} width={220} height={160} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "black" }}>No Image</span>}
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ fontWeight: 700, color: "black" }}>{p.price ? `$${p.price}` : "Price N/A"}</div>

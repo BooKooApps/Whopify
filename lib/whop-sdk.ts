@@ -1,3 +1,4 @@
+// @ts-ignores
 import { WhopServerSdk, makeUserTokenVerifier } from "@whop/api";
 
 export const whopSdk = WhopServerSdk({

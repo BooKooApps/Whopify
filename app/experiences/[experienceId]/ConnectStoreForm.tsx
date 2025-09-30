@@ -35,7 +35,7 @@ export default function ConnectStoreForm({ experienceId, userName }: ConnectStor
     <main style={{ maxWidth: 720, margin: "0 auto", padding: 16, backgroundColor: "black", minHeight: "100vh" }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: "white" }}>
-          Welcome {userName}, let's get you connected.
+          Welcome {userName}, let&apos;s get you connected.
         </h1>
       </div>
 
@@ -44,7 +44,7 @@ export default function ConnectStoreForm({ experienceId, userName }: ConnectStor
         <br />
         1. Copy and paste your store domain below.
         <br />
-        2. Click the "Connect Your Store" button below.
+        2. Click the &quot;Connect Your Store&quot; button below.
         <br />
         3. Follow the instructions to connect our app to your Shopify store.
       </h3>
