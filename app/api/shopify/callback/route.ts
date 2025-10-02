@@ -64,8 +64,6 @@ export async function GET(request: NextRequest) {
       await storage.saveExperienceMapping(experienceId, shop);
     }
 
-    console.log(`OAuth install success for shop: ${shop}, experience: ${experienceId}`);
-
     if (stateData.returnUrl) {
       return NextResponse.redirect(stateData.returnUrl);
     }

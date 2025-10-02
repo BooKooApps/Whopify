@@ -15,7 +15,6 @@ export async function GET(request: NextRequest) {
 
   try {
     if (auth === 'dev-token' || process.env.NODE_ENV === 'development') {
-      console.log('Development mode: Skipping auth verification');
     } else if (auth) {
       const verified = verifyInstallAuthToken(auth, experienceId);
       if (!verified) {
@@ -28,12 +27,8 @@ export async function GET(request: NextRequest) {
       const url = new URL(domain.startsWith('http') ? domain : `https://${domain}`);
       domain = url.hostname;
     } catch {
-      // soft fail
+      console.error('Invalid shop domain:', {domain});
     }
-    
-    console.log('Shop domain received:', shop);
-    console.log('Extracted domain:', domain);
-    console.log('Domain validation test:', /\.myshopify\.com$/i.test(domain));
     
     if (!/\.myshopify\.com$/i.test(domain)) {
       return NextResponse.json({ error: `Invalid shop domain: ${domain}. Must end with .myshopify.com` }, { status: 400 });

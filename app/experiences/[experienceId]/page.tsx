@@ -2,6 +2,8 @@ import { whopSdk } from "../../../lib/whop-sdk";
 import { headers } from "next/headers";
 import Image from "next/image";
 import ConnectStoreForm from "./ConnectStoreForm";
+import { postgresStorage } from "../../../lib/server/utils/postgres-storage";
+import { fetchShopInfo, fetchProductsAdmin } from "../../../lib/server/shopify/admin";
 
 type Product = {
   id: string;
@@ -33,9 +35,6 @@ export default async function StorefrontPage({ params, searchParams }: { params:
       userToken = searchParams['whop-dev-user-token'] as string;
     }
     
-    console.log("Token found:", !!userToken);
-    console.log("Token source:", userToken ? (headersList.get('x-whop-user-token') ? 'headers' : 'query') : 'none');
-
     if (userToken) {
       const modifiedHeaders = new Headers(headersList);
       if (!modifiedHeaders.get('x-whop-user-token')) {
@@ -45,8 +44,6 @@ export default async function StorefrontPage({ params, searchParams }: { params:
       const { userId } = await whopSdk.verifyUserToken(modifiedHeaders);
 
       user = await whopSdk.users.getUser({ userId: userId });
-
-      console.log({user});
     } else {
       error = "No user token found in headers or query params";
     }
@@ -78,8 +75,6 @@ export default async function StorefrontPage({ params, searchParams }: { params:
       hasAccess = result.hasAccess;
       accessLevel = result.accessLevel;
       // accessLevel = 'customer'; // dev only
-
-      console.log("Access check result:", result);
     } catch (err) {
       console.error("Access validation error:", err);
       hasAccess = false;
@@ -88,7 +83,6 @@ export default async function StorefrontPage({ params, searchParams }: { params:
   }
 
 
-  // Check shop connection status
   let shopDomain: string | null = null;
   let shopName: string | null = null;
   let products: Product[] = [];
@@ -97,30 +91,34 @@ export default async function StorefrontPage({ params, searchParams }: { params:
 
   if (user && hasAccess) {
     try {
-      const baseUrl = process.env.NEXTAUTH_URL || `https://${process.env.VERCEL_URL || 'localhost:3000'}`;
-      const shopUrl = `${baseUrl}/api/shopify/shop?experienceId=${encodeURIComponent(experienceId)}`;
-      const shopResp = await fetch(shopUrl, { headers: { Accept: "application/json" } });
+      const shopRecord = await postgresStorage.getShopByExperience(experienceId);
       
-      if (shopResp.ok) {
-        const shopData = await shopResp.json();
-        shopDomain = shopData.shopInfo?.myshopifyDomain || null;
-        shopName = shopData.shopInfo?.name || null;
+      if (shopRecord?.adminAccessToken) {
+        shopDomain = shopRecord.shopDomain;
         
-        if (shopDomain) {
-          const productsUrl = `${baseUrl}/api/shopify/products?experienceId=${encodeURIComponent(experienceId)}`;
-          const productsResp = await fetch(productsUrl, { headers: { Accept: "application/json" } });
+        const shopInfo = await fetchShopInfo({ 
+          shop: shopRecord.shopDomain, 
+          adminAccessToken: shopRecord.adminAccessToken 
+        });
+        
+        if (shopInfo) {
+          shopName = shopInfo.name || null;
           
-          if (productsResp.ok) {
-            const productsData = await productsResp.json();
-            products = (productsData.products || []).map((n: any) => ({ 
-              id: n.id, 
-              title: n.title, 
-              imageUrl: n.imageUrl ?? null, 
-              price: n.price ?? null, 
-              handle: n.handle ?? null 
-            }));
-            isConnected = true;
-          }
+          const productsData = await fetchProductsAdmin({ 
+            shop: shopRecord.shopDomain, 
+            adminAccessToken: shopRecord.adminAccessToken, 
+            first: 20 
+          });
+          
+          products = productsData.map((n) => ({ 
+            id: n.id, 
+            title: n.title, 
+            imageUrl: n.imageUrl ?? null, 
+            price: n.price ?? null, 
+            handle: n.handle ?? null 
+          }));
+          
+          isConnected = true;
         }
       }
     } catch (e: any) {
