@@ -234,4 +234,93 @@ export async function cartCreateStorefront({ shop, storefrontAccessToken, lines 
   return { checkoutUrl: payload.cart.checkoutUrl, cartId: payload.cart.id };
 }
 
+export async function createDraftOrder({ shop, adminAccessToken, variantId, quantity, email, shippingAddress }: { shop: string; adminAccessToken: string; variantId: string; quantity: number; email?: string; shippingAddress?: { firstName?: string; lastName?: string; address1?: string; city?: string; province?: string; country?: string; zip?: string; }; }): Promise<{ orderId: string; orderName: string }> {
+  const mutation = /* GraphQL */ `
+    mutation DraftOrderCreate($input: DraftOrderInput!) {
+      draftOrderCreate(input: $input) {
+        draftOrder {
+          id
+          name
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+  
+  const input: any = {
+    lineItems: [
+      {
+        variantId,
+        quantity
+      }
+    ]
+  };
+  
+  if (email) {
+    input.email = email;
+  }
+  
+  if (shippingAddress) {
+    input.shippingAddress = shippingAddress;
+  }
+  
+  const res = await adminGraphQL<{
+    draftOrderCreate: {
+      draftOrder: { id: string; name: string } | null;
+      userErrors: Array<{ field: string[]; message: string }>;
+    }
+  }>({ shop, adminAccessToken, query: mutation, variables: { input } });
+  
+  const payload = res.data?.draftOrderCreate;
+  if (!payload) throw new Error("draftOrderCreate error: no payload");
+  if (payload.userErrors && payload.userErrors.length) {
+    throw new Error(`draftOrderCreate error: ${payload.userErrors.map(e => e.message).join(", ")}`);
+  }
+  if (!payload.draftOrder) {
+    throw new Error("draftOrderCreate error: no draft order returned");
+  }
+  
+  return { orderId: payload.draftOrder.id, orderName: payload.draftOrder.name };
+}
+
+export async function completeDraftOrder({ shop, adminAccessToken, draftOrderId }: { shop: string; adminAccessToken: string; draftOrderId: string; }): Promise<{ orderId: string; orderName: string }> {
+  const mutation = /* GraphQL */ `
+    mutation DraftOrderComplete($id: ID!) {
+      draftOrderComplete(id: $id) {
+        draftOrder {
+          order {
+            id
+            name
+          }
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+  
+  const res = await adminGraphQL<{
+    draftOrderComplete: {
+      draftOrder: { order: { id: string; name: string } | null } | null;
+      userErrors: Array<{ field: string[]; message: string }>;
+    }
+  }>({ shop, adminAccessToken, query: mutation, variables: { id: draftOrderId } });
+  
+  const payload = res.data?.draftOrderComplete;
+  if (!payload) throw new Error("draftOrderComplete error: no payload");
+  if (payload.userErrors && payload.userErrors.length) {
+    throw new Error(`draftOrderComplete error: ${payload.userErrors.map(e => e.message).join(", ")}`);
+  }
+  if (!payload.draftOrder?.order) {
+    throw new Error("draftOrderComplete error: no order returned");
+  }
+  
+  return { orderId: payload.draftOrder.order.id, orderName: payload.draftOrder.order.name };
+}
+
 

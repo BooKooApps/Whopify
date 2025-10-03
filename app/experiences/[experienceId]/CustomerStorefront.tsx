@@ -8,15 +8,17 @@ type Product = {
   imageUrl: string | null;
   price: string | null;
   handle?: string | null;
+  variantId?: string | null;
 };
 
 type CustomerStorefrontProps = {
   shopDomain: string | null;
   shopName: string | null;
   products: Product[];
+  experienceId: string;
 };
 
-export default function CustomerStorefront({ shopDomain, shopName, products }: CustomerStorefrontProps) {
+export default function CustomerStorefront({ shopDomain, shopName, products, experienceId }: CustomerStorefrontProps) {
   return (
     <main style={{ maxWidth: 960, margin: "0 auto", padding: 24, minHeight: "100vh" }}>
       <div style={{ marginBottom: 24 }}>
@@ -29,6 +31,7 @@ export default function CustomerStorefront({ shopDomain, shopName, products }: C
             product={p} 
             index={index}
             shopDomain={shopDomain}
+            experienceId={experienceId}
             isAdmin={false}
           />
         ))}

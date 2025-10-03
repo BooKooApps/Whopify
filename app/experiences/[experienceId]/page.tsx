@@ -12,6 +12,7 @@ type Product = {
   imageUrl: string | null;
   price: string | null;
   handle?: string | null;
+  variantId?: string | null;
 };
 
 type Props = {
@@ -115,7 +116,8 @@ export default async function StorefrontPage({ params, searchParams }: { params:
             title: n.title, 
             imageUrl: n.imageUrl ?? null, 
             price: n.price ?? null, 
-            handle: n.handle ?? null 
+            handle: n.handle ?? null,
+            variantId: n.variantId ?? null
           }));
           
           isConnected = true;
@@ -175,6 +177,7 @@ export default async function StorefrontPage({ params, searchParams }: { params:
             shopDomain={shopDomain}
             shopName={shopName}
             products={products}
+            experienceId={experienceId}
           />
         );
       }

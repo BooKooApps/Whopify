@@ -10,6 +10,7 @@ type Product = {
   imageUrl: string | null;
   price: string | null;
   handle?: string | null;
+  variantId?: string | null;
 };
 
 type Props = {
@@ -63,6 +64,7 @@ export default function StorefrontClient({
               product={p} 
               index={index}
               shopDomain={shopDomain}
+              experienceId={experienceId}
               isAdmin={true}
             />
           ))}

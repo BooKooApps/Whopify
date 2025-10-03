@@ -9,19 +9,22 @@ type Product = {
   imageUrl: string | null;
   price: string | null;
   handle?: string | null;
+  variantId?: string | null;
 };
 
 type AnimatedProductCardProps = {
   product: Product;
   index: number;
   shopDomain: string | null;
+  experienceId: string;
   isAdmin: boolean;
 };
 
-export default function AnimatedProductCard({ product, index, shopDomain, isAdmin }: AnimatedProductCardProps) {
+export default function AnimatedProductCard({ product, index, shopDomain, experienceId, isAdmin }: AnimatedProductCardProps) {
   const [hasAnimated, setHasAnimated] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [skipAnimation, setSkipAnimation] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -50,6 +53,43 @@ export default function AnimatedProductCard({ product, index, shopDomain, isAdmi
       clearTimeout(dealTimer);
     };
   }, [index, isAdmin]);
+
+  const handleBuyClick = async () => {
+    if (!product.variantId) {
+      alert('Product not available for purchase');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/shopify/cart/create?experienceId=${encodeURIComponent(experienceId)}&variantId=${encodeURIComponent(product.variantId)}`, {
+        method: 'POST'
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to complete purchase');
+      }
+
+      if (data.status === 'needs_action' && data.inAppPurchase) {
+        alert('Payment requires additional action. Please complete payment in Whop.');
+        return;
+      }
+
+      if (data.status === 'success') {
+        alert(`Purchase successful! Order ${data.order.name} created.`);
+        return;
+      }
+
+      throw new Error('Unexpected response from server');
+    } catch (error: any) {
+      console.error('Purchase error:', error);
+      alert(error.message || 'Failed to complete purchase');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <>
@@ -81,10 +121,22 @@ export default function AnimatedProductCard({ product, index, shopDomain, isAdmi
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto" }}>
           <div style={{ fontWeight: 700, color: "black" }}>{product.price ? `$${product.price}` : "Price N/A"}</div>
-          {shopDomain && product.handle && (
-            <a href={`https://${shopDomain}/products/${product.handle}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
-              <button style={{ padding: "8px 12px", border: "none", borderRadius: 6, background: "#5F8A3B", color: "white", cursor: "pointer", fontWeight: 600 }}>Buy Now</button>
-            </a>
+          {product.variantId && (
+            <button 
+              onClick={handleBuyClick}
+              disabled={isLoading}
+              style={{ 
+                padding: "8px 12px", 
+                border: "none", 
+                borderRadius: 6, 
+                background: isLoading ? "#9ca3af" : "#5F8A3B", 
+                color: "white", 
+                cursor: isLoading ? "not-allowed" : "pointer", 
+                fontWeight: 600 
+              }}
+            >
+              {isLoading ? "Loading..." : "Buy"}
+            </button>
           )}
         </div>
       </div>
