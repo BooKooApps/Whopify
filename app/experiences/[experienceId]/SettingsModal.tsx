@@ -1,16 +1,53 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   experienceId: string;
+  currentShopName?: string;
 }
 
-export default function SettingsModal({ isOpen, onClose, experienceId }: SettingsModalProps) {
+export default function SettingsModal({ isOpen, onClose, experienceId, currentShopName }: SettingsModalProps) {
   const [isClosing, setIsClosing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [shopName, setShopName] = useState(currentShopName || '');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setShopName(currentShopName || '');
+    }
+  }, [isOpen, currentShopName]);
+
+  const handleSaveName = async () => {
+    if (!shopName.trim()) {
+      alert('Store name cannot be empty');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/shopify/update-name?experienceId=${encodeURIComponent(experienceId)}&name=${encodeURIComponent(shopName)}`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        onClose();
+        window.location.reload();
+      } else {
+        alert('Failed to update store name: ' + data.error);
+      }
+    } catch (error) {
+      console.error('Error updating store name:', error);
+      alert('Failed to update store name. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleCloseStore = async () => {
     if (!showConfirm) {
@@ -75,11 +112,30 @@ export default function SettingsModal({ isOpen, onClose, experienceId }: Setting
         
         {!showConfirm ? (
           <>
-            <p style={{ margin: '0 0 20px 0', color: '#6b7280', fontSize: 14 }}>
-              Manage your store settings and options.
-            </p>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', marginBottom: 8, color: '#374151', fontSize: 14, fontWeight: 500 }}>
+                Store Name
+              </label>
+              <input
+                type="text"
+                value={shopName}
+                onChange={(e) => setShopName(e.target.value)}
+                placeholder="Enter store name"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: 6,
+                  border: '1px solid #d1d5db',
+                  fontSize: 14,
+                  boxSizing: 'border-box'
+                }}
+              />
+              <p style={{ margin: '8px 0 0 0', color: '#6b7280', fontSize: 12 }}>
+                This is the display name for your store
+              </p>
+            </div>
             
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between', marginBottom: 20 }}>
               <button
                 onClick={handleCloseStore}
                 style={{
@@ -95,20 +151,38 @@ export default function SettingsModal({ isOpen, onClose, experienceId }: Setting
               >
                 Close Store
               </button>
-              <button
-                onClick={handleCancel}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: 6,
-                  border: '1px solid #d1d5db',
-                  background: '#f9fafb',
-                  color: '#374151',
-                  fontSize: 14,
-                  cursor: 'pointer'
-                }}
-              >
-                Cancel
-              </button>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  onClick={handleCancel}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 6,
+                    border: '1px solid #d1d5db',
+                    background: '#f9fafb',
+                    color: '#374151',
+                    fontSize: 14,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveName}
+                  disabled={isSaving}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 6,
+                    border: 'none',
+                    background: isSaving ? '#9ca3af' : '#5F8A3B',
+                    color: 'white',
+                    fontSize: 14,
+                    cursor: isSaving ? 'not-allowed' : 'pointer',
+                    fontWeight: 600
+                  }}
+                >
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
             </div>
           </>
         ) : (

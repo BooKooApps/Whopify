@@ -44,7 +44,7 @@ export default function ConnectStoreForm({ experienceId, userName, userData }: C
     <main style={{ maxWidth: 720, margin: "0 auto", padding: 16, minHeight: "100vh" }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: "white" }}>
-          Welcome {userName}, let&apos;s get you connected.
+          Welcome {userName}, let&apos;s get you connected!
         </h1>
       </div>
 
