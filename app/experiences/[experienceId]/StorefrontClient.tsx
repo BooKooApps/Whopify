@@ -63,6 +63,7 @@ export default function StorefrontClient({
               product={p} 
               index={index}
               shopDomain={shopDomain}
+              isAdmin={true}
             />
           ))}
         </div>

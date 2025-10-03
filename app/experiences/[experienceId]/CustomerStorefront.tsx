@@ -29,6 +29,7 @@ export default function CustomerStorefront({ shopDomain, shopName, products }: C
             product={p} 
             index={index}
             shopDomain={shopDomain}
+            isAdmin={false}
           />
         ))}
       </div>
