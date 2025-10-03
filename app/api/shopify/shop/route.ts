@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { postgresStorage as storage } from '../../../../lib/server/utils/postgres-storage';
+import { postgresStorage as storage } from '../../../../lib/server/utils/postgres';
 import { fetchShopInfo } from '../../../../lib/server/shopify/admin';
 
 export async function GET(request: NextRequest) {

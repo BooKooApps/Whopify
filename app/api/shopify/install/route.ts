@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
   const experienceId = searchParams.get('experienceId');
   const auth = searchParams.get('auth');
   const returnUrl = searchParams.get('returnUrl');
+  const creatorData = searchParams.get('creatorData');
 
   if (!shop || !experienceId) {
     return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
@@ -35,7 +36,17 @@ export async function GET(request: NextRequest) {
     }
 
     const { SHOPIFY_API_KEY } = getEnv();
-    const state = createState({ experienceId, returnUrl });
+    
+    let creator = null;
+    if (creatorData) {
+      try {
+        creator = JSON.parse(decodeURIComponent(creatorData));
+      } catch (e) {
+        console.warn('Failed to parse creator data:', e);
+      }
+    }
+    
+    const state = createState({ experienceId, returnUrl, creator });
     await saveState(state);
 
     const proto = request.headers.get('x-forwarded-proto') || 'http';

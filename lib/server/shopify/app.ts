@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { createState, saveState, verifyHmac, buildInstallUrl, exchangeCodeForToken, verifyWebhookHmac, verifyInstallAuthToken } from "./utils";
-import { postgresStorage as storage } from "../utils/postgres-storage";
+import { postgresStorage as storage } from "../utils/postgres";
 import { createStorefrontAccessToken, registerAppUninstalledWebhook, fetchProductsAdmin, cartCreateStorefront } from "./admin";
 import { createLogger } from "../utils/logger";
 import { getEnv } from "../utils/env";

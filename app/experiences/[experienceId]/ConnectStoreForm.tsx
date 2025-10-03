@@ -3,9 +3,10 @@
 interface ConnectStoreFormProps {
   experienceId: string;
   userName: string;
+  userData: any;
 }
 
-export default function ConnectStoreForm({ experienceId, userName }: ConnectStoreFormProps) {
+export default function ConnectStoreForm({ experienceId, userName, userData }: ConnectStoreFormProps) {
   const handleConnect = async () => {
     const input = document.getElementById('shop-input') as HTMLInputElement;
     const shopDomain = input?.value?.trim();
@@ -22,7 +23,15 @@ export default function ConnectStoreForm({ experienceId, userName }: ConnectStor
     
     try {
       const baseUrl = window.location.origin;
-      const installUrl = `${baseUrl}/api/shopify/install?shop=${encodeURIComponent(shopDomain)}&experienceId=${encodeURIComponent(experienceId)}&auth=dev-token&returnUrl=${encodeURIComponent(window.location.href)}`;
+      const creatorData = encodeURIComponent(JSON.stringify({
+        whopUserId: userData.id,
+        whopUserName: userData.name,
+        whopEmail: userData.email,
+        connectedAt: new Date().toISOString(),
+        source: 'whop'
+      }));
+      
+      const installUrl = `${baseUrl}/api/shopify/install?shop=${encodeURIComponent(shopDomain)}&experienceId=${encodeURIComponent(experienceId)}&auth=dev-token&returnUrl=${encodeURIComponent(window.location.href)}&creatorData=${creatorData}`;
       
       window.open(installUrl, '_blank');
     } catch (error) {
@@ -32,7 +41,7 @@ export default function ConnectStoreForm({ experienceId, userName }: ConnectStor
   };
 
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: 16, backgroundColor: "black", minHeight: "100vh" }}>
+    <main style={{ maxWidth: 720, margin: "0 auto", padding: 16, minHeight: "100vh" }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: "white" }}>
           Welcome {userName}, let&apos;s get you connected.
