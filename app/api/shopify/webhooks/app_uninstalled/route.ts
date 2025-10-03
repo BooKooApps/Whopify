@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const rawBody = await request.arrayBuffer();
     
     if (!verifyWebhookHmac(hmac, rawBody)) {
-      return NextResponse.text('invalid hmac', { status: 401 });
+      return new Response('invalid hmac', { status: 401 });
     }
     
     const shop = request.headers.get('x-shopify-shop-domain');
@@ -17,9 +17,9 @@ export async function POST(request: NextRequest) {
     }
     
     console.log('Webhook app_uninstalled received:', { shop });
-    return NextResponse.text('ok');
+    return new Response('ok');
   } catch (error: any) {
     console.error('Webhook error:', error);
-    return NextResponse.text('error', { status: 500 });
+    return new Response('error', { status: 500 });
   }
 }
