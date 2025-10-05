@@ -17,14 +17,16 @@ type AnimatedProductCardProps = {
   index: number;
   shopDomain: string | null;
   experienceId: string;
+  userId: string;
+  onAddToCart: (product: Product) => void;
   isAdmin: boolean;
 };
 
-export default function AnimatedProductCard({ product, index, shopDomain, experienceId, isAdmin }: AnimatedProductCardProps) {
+export default function AnimatedProductCard({ product, index, shopDomain, experienceId, userId, onAddToCart, isAdmin }: AnimatedProductCardProps) {
   const [hasAnimated, setHasAnimated] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [skipAnimation, setSkipAnimation] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -54,41 +56,10 @@ export default function AnimatedProductCard({ product, index, shopDomain, experi
     };
   }, [index, isAdmin]);
 
-  const handleBuyClick = async () => {
-    if (!product.variantId) {
-      alert('Product not available for purchase');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/shopify/cart/create?experienceId=${encodeURIComponent(experienceId)}&variantId=${encodeURIComponent(product.variantId)}`, {
-        method: 'POST'
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to complete purchase');
-      }
-
-      if (data.status === 'needs_action' && data.inAppPurchase) {
-        alert('Payment requires additional action. Please complete payment in Whop.');
-        return;
-      }
-
-      if (data.status === 'success') {
-        alert(`Purchase successful! Order ${data.order.name} created.`);
-        return;
-      }
-
-      throw new Error('Unexpected response from server');
-    } catch (error: any) {
-      console.error('Purchase error:', error);
-      alert(error.message || 'Failed to complete purchase');
-    } finally {
-      setIsLoading(false);
-    }
+  const handleAddToCart = () => {
+    setIsAddingToCart(true);
+    onAddToCart(product);
+    setTimeout(() => setIsAddingToCart(false), 600);
   };
 
   return (
@@ -123,25 +94,51 @@ export default function AnimatedProductCard({ product, index, shopDomain, experi
           <div style={{ fontWeight: 700, color: "black" }}>{product.price ? `$${product.price}` : "Price N/A"}</div>
           {product.variantId && (
             <button 
-              onClick={handleBuyClick}
-              disabled={isLoading}
+              onClick={handleAddToCart}
+              className={isAddingToCart ? 'add-to-cart-clicked' : ''}
               style={{ 
                 padding: "8px 12px", 
                 border: "none", 
                 borderRadius: 6, 
-                background: isLoading ? "#9ca3af" : "#5F8A3B", 
+                background: isAddingToCart ? "#4a7030" : "#5F8A3B", 
                 color: "white", 
-                cursor: isLoading ? "not-allowed" : "pointer", 
-                fontWeight: 600 
+                cursor: "pointer", 
+                fontWeight: 600,
+                transition: 'all 0.3s ease'
               }}
             >
-              {isLoading ? "Loading..." : "Buy"}
+              {isAddingToCart ? "✓ Added!" : "Add to Cart"}
             </button>
           )}
         </div>
       </div>
 
       <style jsx>{`
+        .add-to-cart-clicked {
+          animation: buttonSuccess 0.6s ease-out;
+        }
+
+        @keyframes buttonSuccess {
+          0% {
+            transform: scale(1);
+          }
+          20% {
+            transform: scale(0.9);
+          }
+          40% {
+            transform: scale(1.1);
+          }
+          60% {
+            transform: scale(0.95);
+          }
+          80% {
+            transform: scale(1.05);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+
         .product-card {
           opacity: 0;
           position: fixed !important;

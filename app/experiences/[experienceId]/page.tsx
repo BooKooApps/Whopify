@@ -154,6 +154,7 @@ export default async function StorefrontPage({ params, searchParams }: { params:
             shopName={shopName}
             products={products}
             isConnected={isConnected}
+            userId={user.id}
           />
         );
       }
@@ -178,6 +179,7 @@ export default async function StorefrontPage({ params, searchParams }: { params:
             shopName={shopName}
             products={products}
             experienceId={experienceId}
+            userId={user.id}
           />
         );
       }

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { headers } from 'next/headers';
 import { whopSdk } from '../../../../../lib/whop-sdk';
 import { postgresStorage } from '../../../../../lib/server/utils/postgres';
 import { createDraftOrder, completeDraftOrder, fetchProductsAdmin } from '../../../../../lib/server/shopify/admin';
@@ -8,20 +7,19 @@ export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const experienceId = searchParams.get('experienceId');
-    const variantId = searchParams.get('variantId');
+    const userId = searchParams.get('userId');
 
-    if (!experienceId || !variantId) {
-      return NextResponse.json({ error: 'Missing experienceId or variantId' }, { status: 400 });
+    if (!experienceId || !userId) {
+      return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
 
-    const headersList = await headers();
-    const userToken = headersList.get('x-whop-user-token');
-    
-    if (!userToken) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const body = await request.json();
+    const { items } = body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
     }
 
-    const { userId } = await whopSdk.verifyUserToken(headersList);
     const user = await whopSdk.users.getUser({ userId });
 
     const shopRecord = await postgresStorage.getShopByExperience(experienceId);
@@ -30,29 +28,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Store not connected' }, { status: 404 });
     }
 
-    const products = await fetchProductsAdmin({
-      shop: shopRecord.shopDomain,
-      adminAccessToken: shopRecord.adminAccessToken,
-      first: 100
-    });
+    const totalAmount = items.reduce((sum, item) => {
+      return sum + (parseFloat(item.price) * item.quantity);
+    }, 0);
 
-    const product = products.find(p => p.variantId === variantId);
-    
-    if (!product || !product.price) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-    }
+    const totalInCents = Math.round(totalAmount * 100);
 
-    const priceInCents = Math.round(parseFloat(product.price) * 100);
-
-    const chargeResult = await whopSdk.payments.chargeUser({
+    const chargeResult = await whopSdk.withUser(user.id).payments.chargeUser({
       userId: user.id,
-      amount: priceInCents,
+      amount: totalInCents,
       currency: 'usd',
-      description: `Purchase: ${product.title}`,
+      description: `Purchase: ${items.length} item(s) from ${shopRecord.shopDomain}`,
       metadata: {
         experienceId,
-        variantId,
-        productId: product.id,
+        itemCount: items.length,
         shopDomain: shopRecord.shopDomain
       }
     });
@@ -64,26 +53,31 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const draftOrder = await createDraftOrder({
-      shop: shopRecord.shopDomain,
-      adminAccessToken: shopRecord.adminAccessToken,
-      variantId,
-      quantity: 1,
-      email: user.email || undefined
-    });
+    const orders = [];
+    for (const item of items) {
+      const draftOrder = await createDraftOrder({
+        shop: shopRecord.shopDomain,
+        adminAccessToken: shopRecord.adminAccessToken,
+        variantId: item.variantId,
+        quantity: item.quantity,
+        email: user.email || undefined
+      });
 
-    const completedOrder = await completeDraftOrder({
-      shop: shopRecord.shopDomain,
-      adminAccessToken: shopRecord.adminAccessToken,
-      draftOrderId: draftOrder.orderId
-    });
+      const completedOrder = await completeDraftOrder({
+        shop: shopRecord.shopDomain,
+        adminAccessToken: shopRecord.adminAccessToken,
+        draftOrderId: draftOrder.orderId
+      });
+
+      orders.push({
+        id: completedOrder.orderId,
+        name: completedOrder.orderName
+      });
+    }
 
     return NextResponse.json({
       status: 'success',
-      order: {
-        id: completedOrder.orderId,
-        name: completedOrder.orderName
-      }
+      orders
     });
 
   } catch (error: any) {
